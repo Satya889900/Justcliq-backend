@@ -1,0 +1,64 @@
+
+refter this auth controller and create the userAuth controller for our project 
+here only login with phone no and otgp now static otp as 123456 
+iimport { asyncHandler } from '../utils/asyncHandler.js';
+import { ApiError } from '../utils/ApiError.js';
+import { ApiResponse } from '../utils/ApiResponse.js';
+import MobileUser from '../models/MobileUser.js';
+
+export const login = asyncHandler(async (req, res) => {
+  const { identifier, otp } = req.body;
+
+  // Validate input
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneRegex = /^\d{10}$/;
+
+  if (!identifier || !otp) {
+    throw new ApiError(400, 'Identifier and OTP are required');
+  }
+
+  if (!emailRegex.test(identifier) && !phoneRegex.test(identifier)) {
+    throw new ApiError(400, 'Invalid email or phone format');
+  }
+
+  if (otp !== '123456') {
+    throw new ApiError(401, 'Invalid OTP');
+  }
+
+  // Find user by email or phone
+  const query = emailRegex.test(identifier)
+    ? { email: identifier }
+    : { phone: identifier };
+  const user = await MobileUser.findOne(query);
+
+  if (!user) {
+    throw new ApiError(404, 'User not found');
+  }
+
+  // Generate tokens
+  const accessToken = user.generateAuthToken();
+  const refreshToken = user.generateRefreshToken();
+
+  // Save refresh token
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  // Set access token in cookies
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'None',
+    maxAge: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Prepare user data (exclude sensitive fields)
+  const userData = { ...user._doc, password: undefined, refreshToken: undefined };
+
+  return res.json(
+    new ApiResponse(
+      200,
+      { user: userData, accessToken, refreshToken },
+      'Login successful'
+    )
+  );
+});

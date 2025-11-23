@@ -1,0 +1,85 @@
+// import { Router } from "express";
+// import {
+//   getAllBookedServicesController,
+//   getBookedServiceByIdController,
+//   assignVendorController,
+//   updateBookedServiceStatusController,
+//   vendorAcceptController,
+//   vendorRejectController,
+//   completeBookingController,
+//   getBookingsController,
+// } from "../controllers/serviceOrder.controller.js";
+
+// const router = Router();
+
+// // All routes require authentication
+
+// // Admin routes
+// router.get("/", getAllBookedServicesController);
+// router.get("/:bookingId", getBookedServiceByIdController);
+// router.post("/assign-vendor", assignVendorController);
+// router.patch("/update-status", updateBookedServiceStatusController);
+
+// // Vendor actions
+// router.post("/accept", vendorAcceptController);
+// router.post("/reject", vendorRejectController);
+
+// // User completes booking
+// router.post("/complete", completeBookingController);
+
+// // router.get("/serviceOrder", getBookingsController);
+
+// export default router;
+
+// serviceOrder.routes.js
+import { Router } from "express";
+import {
+  getAllBookedServicesController,
+  getBookedServiceByIdController,
+  assignVendorController,
+  updateBookedServiceStatusController,
+  vendorAcceptController,
+  vendorRejectController,
+  completeBookingController,
+  getUpcomingOrdersController,
+  getBookingsController,
+  assignVendorToServiceOrderController,
+  getOngoingOrdersController,
+} from "../controllers/serviceOrder.controller.js";
+import { verifyJWT } from "../middlewares/authMiddleware.js";
+
+import { validate } from "../middlewares/validate.js";
+import { assignVendorSchema } from "../validations/serviceOrder.validator.js";
+
+
+const router = Router();
+
+// Vendor first
+router.post("/accept", vendorAcceptController);
+router.post("/reject", vendorRejectController);
+
+// User
+router.post("/complete", completeBookingController);
+
+// Admin
+router.get("/", getAllBookedServicesController);
+router.post(
+  "/assign-vendor",
+  validate(assignVendorSchema, "body"),
+  assignVendorController[1]         // The async handler function
+);
+
+
+router.patch("/update-status", updateBookedServiceStatusController);
+router.get("/serviceOrder", getBookingsController);
+
+// LAST
+
+router.get("/ongoing", verifyJWT(["Admin"]), getOngoingOrdersController);
+router.get("/upcoming", verifyJWT(["Admin"]), getUpcomingOrdersController);
+router.get("/", getAllBookedServicesController);
+router.get("/:bookingId", getBookedServiceByIdController);
+
+router.post("/assign-vendor", assignVendorToServiceOrderController);
+
+export default router;
