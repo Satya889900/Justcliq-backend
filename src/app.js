@@ -12,7 +12,7 @@ import path from "path";
 import adminRoutes from './routes/admin.routes.js';
 import userRoutes from './routes/user.routes.js';
 
-
+import serviceOrderRoutes from "./routes/serviceOrder.routes.js";
 
 dotenv.config();
 const app = express();
@@ -67,6 +67,7 @@ app.use(
 
 
 // Routes
+app.use("/api/serviceOrder", serviceOrderRoutes);
 app.use('/admin', adminRoutes);
 app.use('/user', userRoutes);
 // Serve uploaded images

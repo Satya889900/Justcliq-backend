@@ -135,6 +135,7 @@ import {
   updateBookedServiceSchema,
   assignVendorSchema,
 } from "../validations/serviceOrder.validator.js";
+import BookedService from "../models/bookedService.model.js";
 
 import ServiceOrder from "../models/serviceOrder.model.js"; 
 import Joi from "joi";
@@ -287,33 +288,69 @@ export const getUpcomingOrdersController = asyncHandler(async (req, res) => {
     new ApiResponse(200, upcoming, "Upcoming booked services fetched successfully")
   );
 });
-
-
-// POST /admin/api/serviceOrder/complete
 export const completeBookingController = asyncHandler(async (req, res) => {
-  const { bookingId } = req.body;
+  const { bookingId, rating, review } = req.body;
   const { _id: userId, userType } = req.user;
 
-  // ❌ Admin must NOT be allowed
-  if (userType === "Admin") {
-    return res.status(403).json({
-      success: false,
-      message: "Admin is not allowed to complete the booking",
-    });
+  if (!bookingId) {
+    return res.status(400).json({ success: false, message: "bookingId required" });
   }
 
-  const booking = await service.completeBookingByUserOrVendor(
-    bookingId,
-    userId,
-    userType
-  );
+  const booking = await BookedService.findById(bookingId);
+  if (!booking) {
+    return res.status(404).json({ success: false, message: "Booking not found" });
+  }
+
+  /* ----------------------------
+     USER MARK COMPLETE
+  ----------------------------*/
+  /*----------------------------*/
+  if (userType === "User") {
+    // If this user is the customer
+    if (booking.user.toString() === userId.toString()) {
+      if (!rating) {
+        return res.status(400).json({
+          success: false,
+          message: "Rating is required from user",
+        });
+      }
+
+      booking.userCompleted = true;
+      booking.rating = { score: rating, review: review || "" };
+    }
+
+    // If this user is vendor (same collection, different role)
+    if (booking.vendor && booking.vendor.toString() === userId.toString()) {
+      booking.vendorCompleted = true;
+    }
+  }
+
+
+  /* ----------------------------
+     VENDOR MARK COMPLETE
+  ----------------------------*/
+  if (userType === "User" && req.user.userType !== "ServiceProvider") {
+    // Vendor role is User (your logic)
+  }
+
+  if (userType === "User" || userType === "ServiceProvider" || userType === "Vendor") {
+    if (booking.vendor.toString() === userId.toString()) {
+      booking.vendorCompleted = true;
+    }
+  }
+
+  /* ----------------------------
+     FINAL: Check if both completed
+  ----------------------------*/
+  if (booking.userCompleted && booking.vendorCompleted) {
+    booking.status = "Completed";
+    booking.completedOn = new Date();
+  }
+
+  await booking.save();
 
   return res.json(
-    new ApiResponse(
-      200,
-      booking,
-      "Booking marked as Completed successfully"
-    )
+    new ApiResponse(200, booking, "Completion updated successfully")
   );
 });
 

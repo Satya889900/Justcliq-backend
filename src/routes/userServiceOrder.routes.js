@@ -5,6 +5,12 @@
 // const router = Router();
 
 // // Only User or Vendor execute this
-// router.post("/complete", verifyJWT(["User", "Vendor"]), completeBookingController);
+// router.post(
+//   "/complete",
+//   verifyJWT(["User"]),        // ✅ Only logged-in users
+//   completeBookingController
+// );
+
+
 
 // export default router;

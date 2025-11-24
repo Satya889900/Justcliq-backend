@@ -58,8 +58,11 @@ const router = Router();
 router.post("/accept", vendorAcceptController);
 router.post("/reject", vendorRejectController);
 
-// User
-router.post("/complete", completeBookingController);
+router.post(
+  "/complete",
+  verifyJWT(["User"]),    // vendor also has userType "User"
+  completeBookingController
+);
 
 // Admin
 router.get("/", getAllBookedServicesController);
