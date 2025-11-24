@@ -111,10 +111,12 @@
 
 
 
-import BookedService from "../models/bookedService.model.js";
+// import * as repository from "../repository/serviceOrder.repository.js";
+
 import User from "../models/user.model.js";
 import Admin from "../models/admin.model.js";
 import ServiceProvider from "../models/serviceProvider.model.js";
+import BookedService from "../models/bookedService.model.js";
 
 /**
  * -----------------------------------------------------
@@ -175,7 +177,8 @@ export const assignVendorToBooking = async (
     {
       vendor: vendorId,
       vendorModel,
-      assignedBy: adminId
+      assignedBy: adminId,
+       status: "Ongoing",
     },
     { new: true }
   )

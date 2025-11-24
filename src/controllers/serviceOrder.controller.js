@@ -292,15 +292,31 @@ export const getUpcomingOrdersController = asyncHandler(async (req, res) => {
 // POST /admin/api/serviceOrder/complete
 export const completeBookingController = asyncHandler(async (req, res) => {
   const { bookingId } = req.body;
-  const booking = await service.completeBookingByUser(bookingId);
-  res.json(
+  const { _id: userId, userType } = req.user;
+
+  // ❌ Admin must NOT be allowed
+  if (userType === "Admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Admin is not allowed to complete the booking",
+    });
+  }
+
+  const booking = await service.completeBookingByUserOrVendor(
+    bookingId,
+    userId,
+    userType
+  );
+
+  return res.json(
     new ApiResponse(
       200,
       booking,
-      "Booking completed successfully, status updated to Completed"
+      "Booking marked as Completed successfully"
     )
   );
 });
+
 
 // GET /admin/api/serviceOrder/serviceOrder (custom listing)
 export const getBookingsController = asyncHandler(async (req, res) => {
