@@ -27,6 +27,11 @@ const productSchema = new mongoose.Schema({
     required: true,
     enum: ["User", "Admin"],
   },
+  status: {
+    type: String,
+    enum: ["Pending", "Approved", "Rejected", "Disapproved", "Block", "Dropdown"],
+    default: "Pending",
+  },
   createdAt: { type: Date, default: Date.now },
 });
 

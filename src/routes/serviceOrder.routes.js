@@ -65,12 +65,12 @@ router.post(
 );
 
 // Admin
-router.get("/", getAllBookedServicesController);
-router.post(
-  "/assign-vendor",
-  validate(assignVendorSchema, "body"),
-  assignVendorController[1]         // The async handler function
-);
+// router.get("/", getAllBookedServicesController);
+// router.post(
+//   "/assign-vendor",
+//   validate(assignVendorSchema, "body"),
+//   assignVendorController[1]         // The async handler function
+// );
 
 
 router.patch("/update-status", updateBookedServiceStatusController);

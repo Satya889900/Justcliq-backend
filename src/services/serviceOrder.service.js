@@ -358,10 +358,9 @@ export const viewAllBookedServices = async () => {
     action: "View / Update",
   }));
 };
-
 // Backend service list
 export const getBookingsService = async () => {
-  const { bookings, approvedMap } = await repository.getBookingsWithVendors();
+  const { bookings } = await repository.getBookingsWithVendors();
   if (!bookings.length) throw new ApiError(404, "No bookings found");
 
   const result = [];
@@ -369,16 +368,15 @@ export const getBookingsService = async () => {
   for (const b of bookings) {
     let vendorName = null;
 
-    if (b.vendor && b.assignedBy)
+    // If a vendor is assigned, show vendor name
+    if (b.vendor)
       vendorName = `${b.vendor.firstName} ${b.vendor.lastName}`.trim();
-
-    if (!b.vendor && !vendorName) continue;
 
     result.push({
       bookingId: b._id,
       serviceName: b.service?.name || "Unknown Service",
       username: `${b.user.firstName} ${b.user.lastName}`,
-      vendorName: vendorName || "Not Assigned",
+      vendorName: vendorName || "Not Assigned",   // ← FIXED
       status: b.status,
       availedOn: b.bookedDate,
       completedOn: b.completedOn || null,

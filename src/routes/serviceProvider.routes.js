@@ -45,13 +45,11 @@ const router = Router();
 // Create provider profile (User)
 router.post(
   "/create",
-  verifyJWT(["User"]),
   upload.single("image"),
   createServiceProviderProfileController
 );
 router.put(
   "/update/:serviceId",
-  verifyJWT(["User"]),
   upload.single("image"),
   updateMyServiceProviderProfileController
 );

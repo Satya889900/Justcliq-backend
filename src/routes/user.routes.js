@@ -124,10 +124,6 @@
 
 // export default router;
 
-
-// user.routes.js
-// user.routes.js
-
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/authMiddleware.js";
 import { upload } from "../middlewares/uploadMiddleware.js";
@@ -153,6 +149,8 @@ import featuredServiceRoutes from "./featuredService.routes.js";
 import featuredProductRoutes from "./featuredProduct.routes.js";
 import { updateBookedServiceStatusController } from "../controllers/serviceOrder.controller.js";
 import serviceProviderRoutes from "./serviceProvider.routes.js";
+import userProductRoutes from "./userProduct.routes.js";
+
 const router = Router();
 
 /* ============================
@@ -183,7 +181,8 @@ router.delete("/delete", deleteUserAccount);
 
 router.use("/api/services", serviceRoutes);
 router.use("/api/categories", categoryRoutes);
-router.use("/api/products", productRoutes);
+router.use("/api/products", productRoutes);      // Admin or main product routes
+router.use("/api/user-products", userProductRoutes);
 router.use("/api/bookings", bookingRoutes);
 router.use("/api/orders", orderRoutes);
 router.use("/cart", cartRoutes);
@@ -191,10 +190,11 @@ router.use("/api/featured-services", featuredServiceRoutes);
 router.use("/api/featured-products", featuredProductRoutes);
 router.use("/service-provider", serviceProviderRoutes);
 
+
 router.use("/vendor/api/orders", verifyJWT(["User"]), vendorOrderRoutes);
-router.use(verifyJWT(["User", "Admin"]));
+router.use(verifyJWT(["User"]));
 router.patch("/update-status", updateBookedServiceStatusController);
 
-router.patch("/update-status", updateBookedServiceStatusController);
+
 
 export default router;

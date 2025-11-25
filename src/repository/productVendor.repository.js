@@ -8,7 +8,6 @@ export const getAllProductVendors = async () => {
  const result = await Product.aggregate([
     { $match: { userType: "User" } }, // only user products
     { $sort: { createdAt: -1 } }, // latest product first
-    { $limit: 1 }, // only 1 product
 
     // Join with User
     {
@@ -69,7 +68,7 @@ export const getAllProductVendors = async () => {
     },
   ]);
 
-  return result[0] || null;
+  return result || [];
 };
 
 export const createProductVendor = async (data) => {
@@ -88,4 +87,3 @@ export const updateVendor = async (vendorId, updateData) => {
 export const findVendorByProductAndUser = async (productId, userId) => {
   return await ProductVendor.findOne({ productId, user: userId });
 };
-
