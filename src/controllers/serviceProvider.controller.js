@@ -50,21 +50,31 @@ export const createServiceProviderProfileController = asyncHandler(async (req, r
 ===================================================== */
 export const getMyServiceProviderProfileController = asyncHandler(async (req, res) => {
   const userId = req.user._id;
-
-  const service = await Service.findOne({ user: userId })
+  
+  // Use `find` instead of `findOne` to get all services for the user
+  const services = await Service.find({ user: userId })
     .sort({ createdAt: -1 }); 
 
-  if (!service) throw new ApiError(404, "No service found");
+  if (!services || services.length === 0) {
+    throw new ApiError(404, "No services found for this user.");
+  }
 
-  const provider = await ServiceProvider.findOne({ serviceId: service._id });
+  // Get all service IDs to find their provider statuses
+  const serviceIds = services.map(s => s._id);
+  const providerStatuses = await ServiceProvider.find({ serviceId: { $in: serviceIds } });
 
-  return res.status(200).json(
-    new ApiResponse(200, {
-      service,
-      providerStatus: provider?.action || "Pending",
-      providerReason: provider?.reason || "",
-    }, "Service provider profile fetched successfully")
-  );
+  // Map statuses to service IDs for easy lookup
+  const statusMap = new Map();
+  providerStatuses.forEach(p => statusMap.set(p.serviceId.toString(), p));
+
+  // Combine service with its status
+  const profiles = services.map(service => ({
+    service,
+    providerStatus: statusMap.get(service._id.toString())?.action || "Pending",
+    providerReason: statusMap.get(service._id.toString())?.reason || "",
+  }));
+
+  return res.status(200).json(new ApiResponse(200, profiles, "Service provider profiles fetched successfully"));
 });
 
 
@@ -166,4 +176,3 @@ export const getApprovedProvidersByServiceNameController = asyncHandler(async (r
     new ApiResponse(200, providers, `Approved providers for '${serviceName}' fetched successfully`)
   );
 });
-
