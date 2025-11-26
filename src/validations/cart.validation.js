@@ -6,12 +6,18 @@ export const addToCartSchema = Joi.object({
   quantity: Joi.number().min(1).required(),
 });
 
+
+
 export const removeFromCartSchema = Joi.object({
   productId: objectId.required(),
 });
 
+export const adjustQtySchema = Joi.object({
+  productId: objectId.required(),
+});
 
 export const checkoutCartSchema = Joi.object({
-  // Optional: if user wants to checkout only certain products
-  productIds: Joi.array().items(objectId),
+  // put payment / address fields here if you want
+  paymentMethod: Joi.string().optional(),
+  shippingAddress: Joi.string().optional(),
 });

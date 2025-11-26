@@ -9,6 +9,7 @@ export const getCartController = asyncHandler(async (req, res) => {
   res.json(new ApiResponse(200, cart, "Cart fetched successfully"));
 });
 
+
 export const addItemToCartController = [
   validate(addToCartSchema, "body"),
   asyncHandler(async (req, res) => {
@@ -34,4 +35,16 @@ export const checkoutCartController =[
   res.json(new ApiResponse(200, orders, "Checkout successful, orders created"));
 }),
 ]
+export const increaseQuantityController = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  const cart = await cartService.increaseQuantityService(req.user._id, productId);
+  res.json(new ApiResponse(200, cart, "Quantity increased"));
+});
+
+export const decreaseQuantityController = asyncHandler(async (req, res) => {
+  const { productId } = req.body;
+  const cart = await cartService.decreaseQuantityService(req.user._id, productId);
+  res.json(new ApiResponse(200, cart, "Quantity decreased"));
+});
+
  
