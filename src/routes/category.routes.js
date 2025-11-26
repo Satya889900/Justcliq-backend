@@ -5,9 +5,13 @@ getProductCategoriesController, } from "../controllers/category.controller.js";
 
 
 import { 
-  getServicesByCategoryController 
+  getServicesByCategoryController,
+  getSingleSubCategoryController
 } from "../controllers/service.controller.js"; 
 
+import { 
+  getProductController 
+} from "../controllers/product.controller.js"; 
 // import { getProductCategoriesController } from "../controllers/category.controller.js";
 
 const router = Router();
@@ -23,13 +27,11 @@ router.get("/product-categories",  getProductCategoriesController);
 
 // Get all subcategories (services) under a category
 router.get("/service-categories/:categoryId/services", getServicesByCategoryController);
-
+router.get("/product/:productId", getProductController);
+router.get(
+  "/subcategory/:subCategoryId",
+  getSingleSubCategoryController
+);
 // Protected route: only users
 router.get("/:serviceId", getServiceController);
-
-
-
-
-
-
 export default router;

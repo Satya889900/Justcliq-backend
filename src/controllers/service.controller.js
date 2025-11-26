@@ -17,7 +17,7 @@ import {
   getServiceCategorySchema,
 } from "../validations/service.validation.js";
 import Category from "../models/category.model.js";
-
+import Service from "../models/service.model.js";
 // ✅ Get services by category
 export const getServicesByCategoryController = [
   validate(getServicesByCategorySchema, "params"),
@@ -103,3 +103,22 @@ export const getServiceCategoryController = [
     res.status(200).json(new ApiResponse(200, result, "Category fetched successfully"));
   }),
 ];
+
+
+export const getSingleSubCategoryController = asyncHandler(async (req, res) => {
+  const { subCategoryId } = req.params;
+
+  const subcategory = await Service.findById(subCategoryId)
+    .populate("category", "name")
+    .lean();
+
+  if (!subcategory) {
+    return res
+      .status(404)
+      .json(new ApiResponse(404, null, "Subcategory not found"));
+  }
+
+  res.json(
+    new ApiResponse(200, subcategory, "Subcategory details fetched successfully")
+  );
+});

@@ -162,6 +162,7 @@ import productVendorListRoutes from "./productVendor.routes.js";
 import serviceOrderRoutes from "./serviceOrder.routes.js";
 import productOrderRoutes from "./productOrder.routes.js";
 import stockRoutes from "./stock.routes.js";
+import adminUserProductsRoutes from "./adminUserProducts.routes.js";
 
 /* ----------------------
    MIDDLEWARES
@@ -238,6 +239,7 @@ router.use("/api/products", isAdmin, productRoutes);
 router.use("/api/serviceOrder", isAdmin, serviceOrderRoutes);
 router.use("/api/productOrder", isAdmin, productOrderRoutes);
 router.use("/api/stock", isAdmin, stockRoutes);
+router.use("/api/user-products", adminUserProductsRoutes);
 
 /* ----------------------
    ADMIN UPDATE/DELETE
