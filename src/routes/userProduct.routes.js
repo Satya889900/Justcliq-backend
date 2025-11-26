@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/authMiddleware.js";
-
+import uploadProduct from "../middlewares/uploadProduct.js";
+// import upload from "../middlewares/uploadMiddleware.js";
 import {
   addUserProductController,
   getMyProductsController,
@@ -17,7 +18,11 @@ const router = Router();
 router.use(verifyJWT(["User"]));
 
 // ➕ Add user product
-router.post("/add", addUserProductController);
+router.post(
+  "/add",
+  uploadProduct.single("image"),
+  addUserProductController
+);
 
 // 👤 User's own products
 router.get("/my-products", getMyProductsController);
@@ -31,8 +36,12 @@ router.get("/category/:categoryId", getApprovedProductsByCategoryController);
 // 🟢 Get approved product by ID
 router.get("/:productId", getApprovedProductByIdController);
 
-// ✏ Update product
-router.put("/update/:productId", updateUserProductController);
+// UPDATE product (FormData)
+router.put(
+  "/update/:productId",
+  uploadProduct.single("image"),
+  updateUserProductController
+);
 
 // 🗑 Delete product
 router.delete("/delete/:productId", deleteUserProductController);

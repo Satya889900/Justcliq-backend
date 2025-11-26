@@ -18,11 +18,50 @@ import Product from "../models/userProduct.model.js";
    USER: ADD PRODUCT
 ============================================================ */
 export const addUserProductController = asyncHandler(async (req, res) => {
-  const product = await addUserProductService(req.body, req.user);
-  res
-    .status(201)
-    .json(new ApiResponse(201, product, "Product added successfully (Pending Approval)"));
+  console.log("BODY:", req.body);
+  console.log("FILE:", req.file);
+
+  const { name, category, unit, weight, cost } = req.body;
+
+  const image = req.file?.path || null;
+
+  const newProduct = await Product.create({
+    name,
+    category,
+    unit,
+    weight,
+    cost,
+    image,
+    user: req.user._id,
+    status: "Pending",
+    userType: "User",
+  });
+
+  res.json(
+    new ApiResponse(201, newProduct, "Product added successfully (Pending Approval)")
+  );
 });
+export const updateUserProductController = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const updates = {
+    name: req.body.name,
+    unit: req.body.unit,
+    weight: req.body.weight,
+    cost: req.body.cost,
+  };
+
+  if (req.file?.path) {
+    updates.image = req.file.path;
+  }
+
+  const updated = await Product.findByIdAndUpdate(productId, updates, {
+    new: true,
+  });
+
+  res.json(new ApiResponse(200, updated, "Product updated successfully"));
+});
+
 
 /* ============================================================
    USER: MY OWN PRODUCTS
@@ -64,18 +103,6 @@ export const getApprovedProductsByCategoryController = asyncHandler(async (req, 
   res.json(new ApiResponse(200, products, "Products fetched successfully"));
 });
 
-/* ============================================================
-   USER: UPDATE PRODUCT
-============================================================ */
-export const updateUserProductController = asyncHandler(async (req, res) => {
-  const updated = await updateUserProductService(
-    req.params.productId,
-    req.body,
-    req.user._id
-  );
-
-  res.json(new ApiResponse(200, updated, "Product updated successfully"));
-});
 
 /* ============================================================
    USER: DELETE PRODUCT
