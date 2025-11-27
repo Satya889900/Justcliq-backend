@@ -13,9 +13,6 @@ const userProductSchema = new mongoose.Schema({
 
   cost: { type: Number, required: true },
 
-  // ❌ No description field for User Products
-  // description: not present intentionally
-
   image: { type: String, required: true },
 
   unit: {
@@ -24,7 +21,6 @@ const userProductSchema = new mongoose.Schema({
     required: true,
   },
 
-  // Dynamic numeric fields (same logic)
   quantity: {
     type: Number,
     required: function () {
@@ -46,26 +42,36 @@ const userProductSchema = new mongoose.Schema({
     },
   },
 
-  // 🔗 User who added this product
+  // ---------------------------
+  // 🔥 FIXED STATUS ENUM HERE
+  // ---------------------------
+  status: {
+    type: String,
+    enum: ["Pending", "Approved", "Disapproved", "Block"],
+    default: "Pending",
+  },
+
+  reason: {
+    type: String,
+    trim: true,
+    maxlength: 500,
+    default: "",
+  },
+
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },
-  status: {
-  type: String,
-  enum: ["Pending", "Approved", "Rejected"],
-  default: "Pending",
-},
 
-userType: {
-  type: String,
-  enum: ["User"],
-  required: true,
-},
-
+  userType: {
+    type: String,
+    enum: ["User"],
+    required: true,
+  },
 
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
 
 export { allowedUnits };

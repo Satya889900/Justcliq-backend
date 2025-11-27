@@ -1,20 +1,20 @@
-// routes/productVendor.routes.js
-
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/authMiddleware.js";
-import { getProductVendorsController,
-    createProductVendorController,
- } from "../controllers/productVendor.controller.js";
+import {
+  getProductVendorsController,
+  createProductVendorController,
+  updateVendorAction
+} from "../controllers/productVendor.controller.js";
 
 const router = Router();
 
-// router.use(verifyJWT(['Admin']));// specify roles if needed
-
-// Protected route: only authenticated users
+// ✔ Fetch vendor list
 router.get("/vendors", getProductVendorsController);
 
-
-// Only Admin can perform actions
+// ✔ Create vendor action
 router.post("/action/:productId", createProductVendorController);
+
+// ❗ DO NOT add verifyJWT here (admin.routes.js already protects this)
+router.put("/action/:productId", updateVendorAction);
 
 export default router;
