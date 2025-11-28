@@ -69,7 +69,7 @@ export const verifyJWT = (allowedRoles = []) => {
         : null;
 
       const token = req.cookies?.accessToken || headerToken;
-
+      console.log("Verfy Toke Called", token);
       if (!token) {
         throw new ApiError(401, "Unauthorized request: No token provided");
       }

@@ -150,6 +150,7 @@ import featuredProductRoutes from "./featuredProduct.routes.js";
 import { updateBookedServiceStatusController } from "../controllers/serviceOrder.controller.js";
 import serviceProviderRoutes from "./serviceProvider.routes.js";
 import userProductRoutes from "./userProduct.routes.js";
+import paymentRoutes from "./payment.routes.js";
 
 const router = Router();
 
@@ -168,7 +169,7 @@ router.post("/request", saveRequestUser);
    PROTECTED ROUTES (TOKEN REQUIRED)
 =============================== */
 
-router.use(verifyJWT(["User", "Admin"]));
+router.use(verifyJWT(["User", "Admin", "ServiceProvider"]));
 
 router.get("/profile", getProfile);
 router.put("/profile", upload.single("profileImage"), updateProfile);
@@ -193,7 +194,13 @@ router.use("/service-provider", serviceProviderRoutes);
 
 router.use("/vendor/api/orders", verifyJWT(["User"]), vendorOrderRoutes);
 router.use(verifyJWT(["User"]));
+// router.use(verifyJWT(["User"])); // This was causing the error by re-validating and blocking Admins
 router.patch("/update-status", updateBookedServiceStatusController);
+
+router.use("/payment", (req, res, next) => {
+  console.log("💳 Payment route called:", req.method, req.originalUrl);
+  next();
+}, paymentRoutes);
 
 
 

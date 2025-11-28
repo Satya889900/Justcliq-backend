@@ -73,6 +73,11 @@ const productOrderSchema = new mongoose.Schema({
       enum: ["User", "Admin", null],
       default: null,
     },
+
+    payment: {
+    razorpayOrderId: { type: String },
+    razorpayPaymentId: { type: String },
+  },
   // Automatically generated timestamp for creation
   createdAt: {
     type: Date,

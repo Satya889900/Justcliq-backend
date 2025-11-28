@@ -1,4 +1,8 @@
 // src/services/cart.service.js
+import razorpay from "../utils/razorpay.js";
+import Payment from "../models/payment.model.js";
+import crypto from "crypto";
+
 import * as cartRepo from "../repository/cart.repository.js";
 import ProductOrder from "../models/productOrder.model.js";
 import Product from "../models/product.model.js";
@@ -67,6 +71,132 @@ export const getCartService = async (userId) => {
     totalAmount,
     updatedAt: cart.updatedAt,
   };
+};
+// =======================================
+// 1. CREATE RAZORPAY ORDER (CART TOTAL)
+// =======================================
+export const createRazorpayOrderService = async (userId) => {
+  try {
+    console.log("Service called for user:", userId);
+
+    const cart = await getCartService(userId);
+    console.log("User Cart:", cart);
+
+    if (!cart || cart.items.length === 0) {
+      console.log("❌ Cart empty");
+      throw new ApiError(400, "Cart is empty");
+    }
+
+    console.log("Creating Razorpay order...");
+
+    const options = {
+      amount: cart.totalAmount * 100, // amount in the smallest currency unit
+      currency: process.env.RAZORPAY_CURRENCY || "INR",
+      receipt: `rcpt_${userId.toString().slice(-6)}_${Date.now()}`,
+
+      payment_capture: 1, // auto capture
+    };
+
+    const razorOrder = await razorpay.orders.create(options);
+    console.log("Razorpay order:", razorOrder);
+
+    await Payment.create({
+      user: userId,
+      razorpayOrderId: razorOrder.id,
+      amount: razorOrder.amount,
+    });
+    console.log("Payment DB row created.");
+
+   return {
+  orderId: razorOrder.id,
+  amount: razorOrder.amount,
+  currency: razorOrder.currency,
+  key: process.env.RAZORPAY_KEY_ID
+};
+
+
+  } catch (err) {
+    console.log("🔥 Razorpay Service Error:", err.message);
+    throw err;
+  }
+};
+
+// =======================================
+// 2. VERIFY PAYMENT + PROCESS ORDERS
+// =======================================
+export const verifyAndProcessPaymentService = async (
+  userId,
+  { razorpay_order_id, razorpay_payment_id, razorpay_signature }
+) => {
+  // verify signature
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  const hash = crypto.createHmac("sha256", secret)
+    .update(razorpay_order_id + "|" + razorpay_payment_id)
+    .digest("hex");
+
+  if (hash !== razorpay_signature) {
+    await Payment.findOneAndUpdate(
+      { razorpayOrderId: razorpay_order_id },
+      { status: "failed" }
+    );
+    throw new ApiError(400, "Invalid payment signature");
+  }
+
+  // mark payment successful
+  await Payment.findOneAndUpdate(
+    { razorpayOrderId: razorpay_order_id },
+    {
+      status: "paid",
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+    }
+  );
+
+  // PROCESS ORDERS USING YOUR EXISTING LOGIC
+  const cart = await cartRepo.getCartByUser(userId);
+  const validItems = cart.items.filter((it) => it.product && it.product._id);
+
+  const orders = [];
+
+  for (const item of validItems) {
+    const userProduct = item.product;
+
+    const unitField = unitFieldMap[userProduct.unit];
+    if (unitField && item.quantity > userProduct[unitField]) {
+      throw new ApiError(
+        400,
+        `Only ${userProduct[unitField]} ${userProduct.unit} left for ${userProduct.name}`
+      );
+    }
+
+    await cartRepo.reduceProductStock(
+      userProduct._id,
+      unitField,
+      item.quantity
+    );
+
+    const order = await ProductOrder.create({
+      product: userProduct._id,
+      productName: userProduct.name,
+      quantity: `${item.quantity} ${userProduct.unit}`,
+      cost: userProduct.cost * item.quantity,
+      customer: userId,
+      vendor: userProduct.user,
+      vendorType: userProduct.userType,
+      orderedOn: new Date(),
+      status: "Upcoming",
+      payment: {
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    orders.push(order);
+  }
+
+  await cartRepo.clearCart(userId);
+
+  return orders;
 };
 
 
