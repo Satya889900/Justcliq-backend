@@ -289,56 +289,66 @@ export const findServiceProviderByServiceId = async (serviceId) => {
 export const fetchApprovedProvidersByServiceName = async (serviceName) => {
   if (!serviceName) return [];
 
+  // Step 1: get services with this name
   const services = await Service.find({ name: serviceName }).lean();
   if (!services || services.length === 0) return [];
 
-  const serviceIds = services.map((s) => s._id);
+  const serviceIds = services.map(s => s._id);
 
-  /* -----------------------
-     Approved User providers
-  ----------------------- */
-  const approvedProviders = await ServiceProvider.find({
-    serviceId: { $in: serviceIds },
-    action: "Approved",
-  })
-    .populate("userId", "firstName lastName phone userType")
-    .lean();
+  // Step 2: get providers that are APPROVED
+  const approvedProviders = await ServiceProvider.aggregate([
+    {
+      $match: {
+        serviceId: { $in: serviceIds },
+        action: "Approved"
+      }
+    },
 
-  const users = approvedProviders
-    .filter((sp) => sp.userId.userType !== "Admin")
-    .map((sp) => ({
-      _id: sp.userId._id,
-      name:
-        `${sp.userId.firstName || ""} ${sp.userId.lastName || ""}`.trim() ||
-        "Unknown",
-      phone: sp.userId.phone,
-      rating: 0,
-      type: "User",
-    }));
+    // JOIN USER details
+    {
+      $lookup: {
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "userData"
+      }
+    },
+    { $unwind: "$userData" },
 
-  /* -----------------------
-     Admin providers
-  ----------------------- */
-  const adminProviders = [];
-  for (const service of services) {
-    if (service.userType === "Admin") {
-      const admin = await Admin.findById(service.user)
-        .select("firstName lastName phone")
-        .lean();
-      if (admin) {
-        adminProviders.push({
-          _id: admin._id,
-          name: `${admin.firstName} ${admin.lastName}`,
-          phone: admin.phone,
-          rating: 5,
-          type: "Admin",
-        });
+    // ADD computed field for sorting Justcliq first
+    {
+      $addFields: {
+        isJustcliqVendor: {
+          $cond: [
+            { $regexMatch: { input: "$userData.businessName", regex: /justcliq/i } },
+            1,
+            0
+          ]
+        }
+      }
+    },
+
+    // SORT Justcliq vendors first → then recent
+    {
+      $sort: {
+        isJustcliqVendor: -1,
+        createdAt: -1
+      }
+    },
+
+    // FINAL RETURN FIELDS
+    {
+      $project: {
+        _id: "$userData._id",
+        firstName: "$userData.firstName",
+        lastName: "$userData.lastName",
+        phone: "$userData.phone",
+        businessName: "$userData.businessName",
+        profileImage: "$userData.profileImage",
+        isJustcliqVendor: 1
       }
     }
-  }
+  ]);
 
-  const adminMap = new Map();
-  adminProviders.forEach((a) => adminMap.set(a._id.toString(), a));
-
-  return [...users, ...Array.from(adminMap.values())];
+  return approvedProviders;
 };

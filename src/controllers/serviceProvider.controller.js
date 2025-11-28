@@ -170,9 +170,78 @@ export const getServiceProvidersListController = asyncHandler(async (req, res) =
 ===================================================== */
 export const getApprovedProvidersByServiceNameController = asyncHandler(async (req, res) => {
   const { serviceName } = req.params;
-  const providers = await getApprovedProvidersByServiceNameService(serviceName);
+const providers = await ServiceProvider.aggregate([
+  // Join with Services
+  {
+    $lookup: {
+      from: "services",
+      localField: "serviceId",
+      foreignField: "_id",
+      as: "service"
+    }
+  },
+  { $unwind: "$service" },
 
-  return res.status(200).json(
-    new ApiResponse(200, providers, `Approved providers for '${serviceName}' fetched successfully`)
-  );
+  // Match service name
+  {
+    $match: {
+      action: "Approved",
+      "service.name": serviceName
+    }
+  },
+
+  // Join with Users
+  {
+    $lookup: {
+      from: "users",
+      localField: "userId",
+      foreignField: "_id",
+      as: "userData"
+    }
+  },
+  { $unwind: "$userData" },
+
+  // Create flag for Justcliq vendors
+  {
+    $addFields: {
+      isJustcliqVendor: {
+        $cond: [
+          { $regexMatch: { input: "$userData.businessName", regex: /justcliq/i } },
+          1,
+          0
+        ]
+      }
+    }
+  },
+
+  // ✔ SORTING PRIORITY
+  {
+    $sort: {
+      isJustcliqVendor: -1, // Justcliq first
+      createdAt: -1
+    }
+  },
+
+  // Project final data
+  {
+    $project: {
+      _id: 1,
+      serviceType: "$service.name",
+      cost: "$service.cost",
+      action: 1,
+      reason: 1,
+      businessName: "$userData.businessName",
+      name: {
+        $concat: [
+          "$userData.firstName", " ", "$userData.lastName"
+        ]
+      },
+      phone: "$userData.phone",
+      profileImage: "$userData.profileImage",
+      isJustcliqVendor: 1,
+      createdAt: 1
+    }
+  }
+]);
+
 });

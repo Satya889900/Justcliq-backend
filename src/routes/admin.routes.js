@@ -170,7 +170,7 @@ import adminUserProductsRoutes from "./adminUserProducts.routes.js";
 import { uploadServiceImage } from "../middlewares/ServiceUpload.js";
 import upload from "../middlewares/uploadProduct.js";
 import { uploadAdminImage } from "../middlewares/uploadAdmin.js";
-
+import adminServiceProviderRoutes from "./adminServiceProvider.routes.js";
 
 
 /* ----------------------
@@ -240,6 +240,7 @@ router.use("/api/serviceOrder", isAdmin, serviceOrderRoutes);
 router.use("/api/productOrder", isAdmin, productOrderRoutes);
 router.use("/api/stock", isAdmin, stockRoutes);
 router.use("/api/user-products", adminUserProductsRoutes);
+router.use("/api/service-provider/admin", isAdmin, adminServiceProviderRoutes);
 
 /* ----------------------
    ADMIN UPDATE/DELETE
