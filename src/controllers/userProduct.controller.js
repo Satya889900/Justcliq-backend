@@ -17,50 +17,96 @@ import Product from "../models/userProduct.model.js";
 /* ============================================================
    USER: ADD PRODUCT
 ============================================================ */
+import cloudinary from "../config/cloudinary.js";
+
 export const addUserProductController = asyncHandler(async (req, res) => {
-  console.log("BODY:", req.body);
-  console.log("FILE:", req.file);
+  const { name, category, cost, unit } = req.body;
 
-  const { name, category, unit, weight, cost } = req.body;
+  let imageUrl = null;
 
-  const image = req.file?.path || null;
+  // ⚡ FASTEST CLOUDINARY UPLOAD (memory buffer → stream)
+  if (req.file) {
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "productImages" },
+        (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        }
+      );
+      stream.end(req.file.buffer);
+    });
 
-  const newProduct = await Product.create({
+    imageUrl = uploadResult.secure_url;
+  }
+
+  const newProductData = {
     name,
     category,
-    unit,
-    weight,
     cost,
-    image,
+    unit,
     user: req.user._id,
-    status: "Pending",
     userType: "User",
-  });
+    status: "Pending",
+    image: imageUrl,
+    quantity: unit === "quantity" ? req.body.quantity : undefined,
+    weight: unit === "kg" ? req.body.weight : undefined,
+    volume: unit === "liters" ? req.body.volume : undefined,
+  };
+
+  const newProduct = await Product.create(newProductData);
 
   res.json(
     new ApiResponse(201, newProduct, "Product added successfully (Pending Approval)")
   );
 });
+
+
+
 export const updateUserProductController = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  const updates = {
-    name: req.body.name,
-    unit: req.body.unit,
-    weight: req.body.weight,
-    cost: req.body.cost,
-  };
+  let updates = {};
 
-  if (req.file?.path) {
-    updates.image = req.file.path;
+  if (req.body.name) updates.name = req.body.name;
+  if (req.body.cost) updates.cost = req.body.cost;
+  if (req.body.unit) updates.unit = req.body.unit;
+
+  if (req.body.unit === "quantity") {
+    updates.quantity = req.body.quantity;
+    updates.weight = undefined;
+    updates.volume = undefined;
+  } else if (req.body.unit === "kg") {
+    updates.weight = req.body.weight;
+    updates.quantity = undefined;
+    updates.volume = undefined;
+  } else if (req.body.unit === "liters") {
+    updates.volume = req.body.volume;
+    updates.quantity = undefined;
+    updates.weight = undefined;
   }
 
-  const updated = await Product.findByIdAndUpdate(productId, updates, {
-    new: true,
-  });
+  if (req.file) {
+    const cloudUpload = await cloudinary.uploader.upload_stream(
+      { folder: "products" },
+      (error, result) => {
+        if (!error) updates.image = result.secure_url;
+      }
+    );
 
-  res.json(new ApiResponse(200, updated, "Product updated successfully"));
+    cloudUpload.end(req.file.buffer);
+  }
+
+  let updatedProduct = await Product.findByIdAndUpdate(
+    productId,
+    { $set: updates },
+    { new: true, lean: true }
+  );
+
+  res.json(new ApiResponse(200, updatedProduct, "Updated successfully"));
 });
+
+
 
 
 /* ============================================================
@@ -71,7 +117,8 @@ export const getMyProductsController = asyncHandler(async (req, res) => {
 
   const products = await Product.find({ user: userId })
     .populate("category", "name")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
   res.json(new ApiResponse(200, products, "Your products fetched successfully"));
 });
