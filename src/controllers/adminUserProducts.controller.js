@@ -8,7 +8,7 @@ import UserProduct from "../models/userProduct.model.js";
 export const adminGetAllUserProductsController = asyncHandler(async (req, res) => {
   const products = await UserProduct.find({})
     .populate("category", "name")
-    .populate("user", "firstName lastName email")
+    .populate("user", "firstName lastName email profileImage phone")
     .sort({ createdAt: -1 })
     .lean();
 

@@ -6,13 +6,17 @@ import Product from "../models/product.model.js";
 export const getAllProducts = async () =>
   Product.find()
     .populate("category", "name") // only fetch category name
-    .populate("user", "firstName lastName email"); // fetch user info
+    .populate("user", "firstName lastName email")
+    .sort({ createdAt: -1 })
+    .lean(); // fetch user info
 
 // Fetch product by ID
 export const getProductById = async (id) =>
   Product.findById(id)
     .populate("category", "name")
-    .populate("user", "firstName lastName email");
+    .populate("user", "firstName lastName email")
+    .sort({ createdAt: -1 })
+    .lean();
 
 // Create product
 export const createProduct = async (data) => Product.create(data);
@@ -29,7 +33,9 @@ export const getProductsByCategory = async (categoryId) =>
   Product.find({ category: categoryId })
     .populate("category", "name")
     .populate("user", "firstName lastName email")
-    .sort({ userType: -1, createdAt: -1 }); // Admins first, newest first
+    .sort({ userType: -1, createdAt: -1 })
+    .sort({ createdAt: -1 })
+    .lean();// Admins first, newest first
 
 
 // Delete all products by category

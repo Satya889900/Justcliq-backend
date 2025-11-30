@@ -108,17 +108,24 @@ export const getUserProductByIdService = async (productId) => {
     status: "Approved",
   })
     .populate("category", "name")
-    .populate("user", "firstName lastName");
+    .populate("user", "firstName lastName profileImage phone")
+    .lean();
 
   if (!product) throw new ApiError(404, "Product not found or not approved");
   return product;
 };
 
 export const getAllApprovedProductsService = async () => {
-  return await Product.find({ status: "Approved" })
+  return await Product.find(
+    { status: "Approved" },
+    "name cost status reason image category user createdAt"
+  )
     .populate("category", "name")
-    .sort({ createdAt: -1 });
+    .populate("user", "firstName lastName profileImage")
+    .sort({ createdAt: -1 })
+    .lean();
 };
+
 
 export const getApprovedProductsByCategoryService = async (categoryId, user) => {
   let filter = { category: categoryId };
@@ -127,11 +134,16 @@ export const getApprovedProductsByCategoryService = async (categoryId, user) => 
     filter.status = { $in: ["Pending", "Approved"] };
   }
 
-  return await Product.find(filter)
+  return await Product.find(
+    filter,
+    "name cost status reason image category user createdAt"
+  )
     .populate("category", "name")
-    .populate("user", "firstName lastName email")
-    .sort({ createdAt: -1 });
+    .populate("user", "firstName lastName profileImage")
+    .sort({ createdAt: -1 })
+    .lean();
 };
+
 
 export const deleteUserProductService = async (productId, userId) => {
   const product = await Product.findById(productId);
