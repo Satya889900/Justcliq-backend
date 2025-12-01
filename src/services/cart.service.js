@@ -226,35 +226,65 @@ export const removeItemFromCartService = async (userId, productId) => {
   return await cartRepo.removeItemFromCart(userId, productId);
 };
 
+
 export const increaseQuantityService = async (userId, productId) => {
-  const cart = await Cart.findOne({ user: userId });
+  let cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart) throw new ApiError(400, "Cart empty");
 
-  const item = cart.items.find((i) => i.product.toString() === productId);
+  const item = cart.items.find(
+    (i) => i.product._id.toString() === productId
+  );
   if (!item) throw new ApiError(404, "Item not found");
+
   item.quantity += 1;
   cart.updatedAt = new Date();
   await cart.save();
-  return cart.populate("items.product");
+
+  // fetch updated item only
+  const updatedItem = {
+    product: item.product,
+    quantity: item.quantity
+  };
+
+  return updatedItem; // 🔥 return ONLY increased item
 };
 
+
+
+
 export const decreaseQuantityService = async (userId, productId) => {
-  const cart = await Cart.findOne({ user: userId });
+  let cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart) throw new ApiError(400, "Cart empty");
 
-  const item = cart.items.find((i) => i.product.toString() === productId);
+  const item = cart.items.find(
+    (i) => i.product._id.toString() === productId
+  );
   if (!item) throw new ApiError(404, "Item not found");
 
   if (item.quantity <= 1) {
-    cart.items = cart.items.filter((it) => it.product.toString() !== productId);
-  } else {
-    item.quantity -= 1;
+    cart.items = cart.items.filter(
+      (it) => it.product._id.toString() !== productId
+    );
+
+    await cart.save();
+    return { removed: true, productId }; // 🔥 RETURN ONLY REMOVED INFO
   }
 
+  item.quantity -= 1;
   cart.updatedAt = new Date();
   await cart.save();
-  return cart.populate("items.product");
-};// src/services/cart.service.js (excerpt)
+
+  const updatedItem = {
+    product: item.product,
+    quantity: item.quantity
+  };
+
+  return updatedItem; // return only updated item
+};
+
+
+
+// src/services/cart.service.js (excerpt)
 export const checkoutCartService = async (userId) => {
   const cart = await cartRepo.getCartByUser(userId);
   if (!cart || !cart.items || cart.items.length === 0)
