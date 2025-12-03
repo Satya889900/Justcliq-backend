@@ -8,31 +8,22 @@ import Product from "../models/product.model.js";
  * Get Cart by user and populate user products
  */
 export const getCartByUser = async (userId) => {
-  let cart = await Cart.findOne({ user: userId }).populate({
-    path: "items.product",
-    model: "UserProduct",
-  });
+  let cart = await Cart.findOne({ user: userId })
+    .populate({
+      path: "items.userProductId",
+      model: "UserProduct"
+    })
+    .populate({
+      path: "items.adminProductId",
+      model: "Product"
+    });
 
-  // If there's no cart, return empty cart object
   if (!cart) return { user: userId, items: [] };
 
-  // Remove items whose product is null (product deleted or ref mismatch)
-  const originalLen = cart.items.length;
-  cart.items = cart.items.filter((it) => it.product && it.product._id);
-
-  // If we removed any items, persist the cleaned cart
-  if (cart.items.length !== originalLen) {
-    cart.updatedAt = new Date();
-    await cart.save();
-    // re-populate just in case
-    cart = await Cart.findById(cart._id).populate({
-      path: "items.product",
-      model: "UserProduct",
-    });
-  }
-
-  return cart || { user: userId, items: [] };
+  return cart;
 };
+
+
 
 /**
  * Add item to cart

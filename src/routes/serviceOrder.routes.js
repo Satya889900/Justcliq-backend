@@ -10,7 +10,7 @@ import {
   completeBookingController,
   getUpcomingOrdersController,
   getOngoingOrdersController,
-  getBookingsController
+  getBookingsController,getUserAllBookingsController,
 } from "../controllers/serviceOrder.controller.js";
 
 import { verifyJWT } from "../middlewares/authMiddleware.js";
@@ -18,7 +18,11 @@ import { validate } from "../middlewares/validate.js";
 import { assignVendorSchema } from "../validations/serviceOrder.validator.js";
 
 const router = Router();
-
+router.get(
+  "/my-all-bookings",
+  verifyJWT(["User"]),
+  getUserAllBookingsController
+);
 /* ======================================================
    🔐 VENDOR ACTIONS (ACCEPT / REJECT)
 ====================================================== */
@@ -41,10 +45,17 @@ router.patch("/update-status", verifyJWT(["Admin"]), updateBookedServiceStatusCo
 ====================================================== */
 router.post(
   "/assign-vendor",
-//   verifyJWT(["Admin"]),
-//   validate(assignVendorSchema, "body"),
+  verifyJWT(["Admin"]),
+  validate(assignVendorSchema, "body"),
   assignVendorController[1]
 );
+/* ======================================================
+   🔐 USER: VIEW MY BOOKINGS
+====================================================== */
+/* ======================================================
+   🔐 USER: VIEW ALL OWN BOOKINGS
+====================================================== */
+
 
 /* ======================================================
    🔐 ADMIN: LISTINGS

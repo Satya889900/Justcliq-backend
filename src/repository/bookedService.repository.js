@@ -7,15 +7,20 @@ import User from "../models/user.model.js";
 
 // Create a new booking
 // ✅ Create booking with vendor explicitly set
-export const createBookedService = async ({ service, user, vendor, bookedDate, bookedTime }) => {
-  return await BookedService.create({
-    service,
-    user,
-    vendor,
-    bookedDate,
-    bookedTime,
+export const createBookedService = async (data) => {
+  return BookedService.create({
+    service: data.service,
+    user: data.user,
+    vendor: data.vendor,
+    bookedDate: data.bookedDate,
+    bookedTime: data.bookedTime,
+    status: data.status,   // ⭐ ADD THIS
+    userCompleted: false,
+    vendorCompleted: false
   });
 };
+
+
 
 
 // Fetch a booked service with vendor info

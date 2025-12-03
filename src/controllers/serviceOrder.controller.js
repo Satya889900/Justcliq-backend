@@ -225,3 +225,27 @@ export const getBookingsController = asyncHandler(async (req, res) => {
       new ApiResponse(200, bookings, "All booked services fetched successfully")
     );
 });
+/* ============================================================
+   📌 USER: GET ALL MY BOOKINGS
+============================================================ */
+/* ============================================================
+   📌 USER: GET ALL BOOKED SERVICES (HIS OWN BOOKINGS)
+============================================================ */
+export const getUserAllBookingsController = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const bookings = await BookedService.find({ user: userId })
+    .populate("service", "name cost image category user userType")
+    .populate("vendor", "firstName lastName phone email profileImage")
+    .sort({ createdAt: -1 }) // newest first
+    .lean();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      bookings,
+      "User bookings fetched successfully"
+    )
+  );
+});
+

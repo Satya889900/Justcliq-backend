@@ -7,7 +7,7 @@ import { addToCartSchema, removeFromCartSchema,checkoutCartSchema } from "../val
 export const getCartController = asyncHandler(async (req, res) => {
   const cart = await cartService.getCartService(req.user._id);
   res.json(new ApiResponse(200, cart, "Cart fetched successfully"));
-});
+}); 
 
 
 export const addItemToCartController = [

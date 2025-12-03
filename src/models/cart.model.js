@@ -3,10 +3,21 @@ import mongoose from "mongoose";
 const cartItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "UserProduct", 
     required: true,
+    refPath: "items.productModel",   // 🔥 Dynamic model reference
   },
-  quantity: { type: Number, required: true, min: 1 },
+
+  productModel: {
+    type: String,
+    required: true,
+    enum: ["UserProduct", "Product"], // 🔥 Support both models
+  },
+
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1
+  }
 });
 
 const cartSchema = new mongoose.Schema({
@@ -14,7 +25,7 @@ const cartSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-    unique: true, // one cart per user
+    unique: true,
   },
   items: [cartItemSchema],
   updatedAt: { type: Date, default: Date.now },

@@ -15,6 +15,7 @@ import {
   getCompletedBookedServicesSchema,
   getUpcomingBookedServicesSchema,
 } from "../validations/bookedService.validation.js";
+import BookedService from "../models/bookedService.model.js";
 
 // POST create booking
 export const bookServiceController = [
@@ -50,19 +51,29 @@ export const getBookedServicesByUserAndServiceController = [
 ];
 
 // All bookings (with optional filters)
-export const getUserBookedServices = [
-  validate(getUserBookingsSchema, "query"),
-  asyncHandler(async (req, res) => {
-    const userId = req.user._id;
-    const filters = req.query;
+export const getUserBookedServices = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
 
-    const bookings = await getUserBookings(userId, filters);
+  // Get all bookings sorted by last update
+  const allBookings = await BookedService.find({ user: userId })
+    .populate("service", "name cost image category description")
+    .populate("vendor", "firstName lastName phone email profileImage")
+    .sort({ updatedAt: -1 });  // ⭐ ALWAYS SHOW MOST RECENT STATUS
 
-    return res.json(
-      new ApiResponse(200, bookings, "Booked services fetched successfully")
-    );
-  }),
-];
+  // Remove duplicates → keep only latest booking per service
+  const uniqueBookings = Object.values(
+    allBookings.reduce((acc, booking) => {
+      acc[booking.service._id] = booking; // overwrite older ones
+      return acc;
+    }, {})
+  );
+
+  return res.status(200).json(
+    new ApiResponse(200, uniqueBookings, "Booked services fetched successfully")
+  );
+});
+
+
 
 // Completed bookings (with optional filters)
 export const getCompletedBookedServicesController = [

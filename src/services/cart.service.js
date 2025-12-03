@@ -201,26 +201,47 @@ export const verifyAndProcessPaymentService = async (
 
 
 export const addItemToCartService = async (userId, productId, qty = 1) => {
-  const product = await UserProduct.findById(productId);
-  if (!product) throw new ApiError(404, "UserProduct not found");
+
+  let userProduct = await UserProduct.findById(productId);
+  let adminProduct = null;
+
+  // If not UserProduct → try Admin Product
+  if (!userProduct) {
+    adminProduct = await Product.findById(productId);
+  }
+
+  if (!userProduct && !adminProduct) {
+    throw new ApiError(404, "Product not found");
+  }
 
   let cart = await Cart.findOne({ user: userId });
   if (!cart) {
     cart = await Cart.create({ user: userId, items: [] });
   }
 
-  const item = cart.items.find((i) => i.product.toString() === productId);
-  if (item) {
-    item.quantity += qty;
+  // SAFE MATCHING (avoid error)
+  const matchItem = cart.items.find((i) =>
+    (i.userProductId && i.userProductId.toString() === productId) ||
+    (i.adminProductId && i.adminProductId.toString() === productId)
+  );
+
+  if (matchItem) {
+    matchItem.quantity += qty;
   } else {
-    cart.items.push({ product: productId, quantity: qty });
+    cart.items.push({
+      userProductId: userProduct ? userProduct._id : null,
+      adminProductId: adminProduct ? adminProduct._id : null,
+      quantity: qty,
+    });
   }
 
   cart.updatedAt = new Date();
   await cart.save();
 
-  return await cart.populate("items.product");
+  return cart;
 };
+
+
 
 export const removeItemFromCartService = async (userId, productId) => {
   return await cartRepo.removeItemFromCart(userId, productId);
