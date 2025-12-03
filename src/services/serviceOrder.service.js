@@ -319,25 +319,20 @@ export const completeBookingByUserOrVendor = async (
   callerId,
   callerType
 ) => {
-  const booking = await repository.getBookingById(bookingId);
+  const booking = await BookedService.findById(bookingId);
   if (!booking) throw new ApiError(404, "Booking not found");
 
-  // USER completes only his own booking
-  if (callerType === "User") {
-    if (booking.user._id.toString() !== callerId) {
-      throw new ApiError(403, "User is not authorized to complete this booking");
-    }
+  if (callerType === "User" && booking.user.toString() !== callerId) {
+    throw new ApiError(403, "User not authorized");
   }
 
-  // VENDOR completes only assigned booking
-  if (callerType === "Vendor" || callerType === "ServiceProvider") {
-    if (!booking.vendor || booking.vendor._id.toString() !== callerId) {
-      throw new ApiError(403, "Vendor is not assigned to this booking");
-    }
+  if (callerType !== "User" && booking.vendor?.toString() !== callerId) {
+    throw new ApiError(403, "Vendor not authorized");
   }
 
-  return await repository.completeBooking(bookingId);
+  return booking;
 };
+
 
 // Admin booked service list
 export const viewAllBookedServices = async () => {

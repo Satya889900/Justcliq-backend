@@ -5,6 +5,7 @@ import { createBookedService, getBookedServicesByUserAndService,getBookedService
 import Service from "../models/service.model.js";
 import User from "../models/user.model.js";
 
+import BookedService from "../models/bookedService.model.js";
 
 export const bookServiceForUser = async (userId, serviceId, bookedDate, bookedTime) => {
   if (!serviceId || !bookedDate || !bookedTime) {
@@ -81,4 +82,74 @@ export const getCompletedBookedServices = async (userId) => {
 export const getUpcomingBookedServices = async (userId) => {
   const services = await getUpcomingBookedServicesByUser(userId);
   return services || [];
+};
+export const startServiceByVendor = async (vendorId, bookingId) => {
+  const booking = await BookedService.findById(bookingId);
+
+  if (!booking) {
+    throw new ApiError(404, "Booking not found");
+  }
+
+  // vendor check
+  if (booking.vendor.toString() !== vendorId.toString()) {
+    throw new ApiError(403, "You are not authorized to start this service");
+  }
+
+  // can't start completed or cancelled
+  if (booking.status === "Completed") {
+    throw new ApiError(400, "Completed booking cannot be started");
+  }
+  if (booking.status === "Cancelled") {
+    throw new ApiError(400, "Cancelled booking cannot be started");
+  }
+
+  // already started
+  if (booking.status === "Ongoing") {
+    throw new ApiError(400, "Service is already in progress");
+  }
+
+  // update status
+  booking.status = "Ongoing";
+  await booking.save();
+
+  return await booking.populate([
+    { path: "service", select: "name cost image category" },
+    { path: "vendor", select: "firstName lastName phone email" },
+    { path: "user", select: "firstName lastName phone email" }
+  ]);
+};
+
+
+export const cancelBookedService = async (userId, bookingId) => {
+  const booking = await BookedService.findById(bookingId);
+
+  if (!booking) {
+    throw new ApiError(404, "Booking not found");
+  }
+
+  if (booking.user.toString() !== userId.toString()) {
+    throw new ApiError(403, "You are not allowed to cancel this booking");
+  }
+
+  // ⛔ Already Completed or Cancelled
+  if (booking.status === "Completed") {
+    throw new ApiError(400, "Completed bookings cannot be cancelled");
+  }
+
+  if (booking.status === "Cancelled") {
+    throw new ApiError(400, "Booking is already cancelled");
+  }
+
+  // Update status
+  booking.status = "Cancelled";
+  booking.userCompleted = false;
+  booking.vendorCompleted = false;
+
+  await booking.save();
+
+  return await booking.populate([
+    { path: "service", select: "name cost image category" },
+    { path: "vendor", select: "firstName lastName phone email" },
+    { path: "user", select: "firstName lastName phone email" }
+  ]);
 };

@@ -16,7 +16,9 @@ import {
   getUpcomingBookedServicesSchema,
 } from "../validations/bookedService.validation.js";
 import BookedService from "../models/bookedService.model.js";
-
+import { cancelBookedService } from "../services/bookedService.service.js";
+import { cancelBookingSchema } from "../validations/bookedService.validation.js";
+import { startServiceByVendor } from "../services/bookedService.service.js";
 // POST create booking
 export const bookServiceController = [
   validate(bookServiceSchema, "body"),
@@ -101,6 +103,33 @@ export const getUpcomingBookedServicesController = [
 
     return res.json(
       new ApiResponse(200, services, "Upcoming booked services fetched successfully")
+    );
+  }),
+];
+
+
+
+export const startServiceByVendorController = asyncHandler(async (req, res) => {
+  const vendorId = req.user._id;
+  const { bookingId } = req.params;
+
+  const booking = await startServiceByVendor(vendorId, bookingId);
+
+  return res.status(200).json(
+    new ApiResponse(200, booking, "Service started successfully")
+  );
+});
+
+export const cancelBookedServiceController = [
+  validate(cancelBookingSchema, "params"),
+  asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { bookingId } = req.params;
+
+    const result = await cancelBookedService(userId, bookingId);
+
+    return res.status(200).json(
+      new ApiResponse(200, result, "Service booking cancelled successfully")
     );
   }),
 ];

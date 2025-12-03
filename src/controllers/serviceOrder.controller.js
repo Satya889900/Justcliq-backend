@@ -177,31 +177,47 @@ export const getUpcomingOrdersController = asyncHandler(async (req, res) => {
    📌 COMPLETE BOOKING (USER or VENDOR)
 ============================================================ */
 export const completeBookingController = asyncHandler(async (req, res) => {
-  const { bookingId, rating, review } = req.body;
+  const { bookingId, vendorCompleted, rating, review } = req.body;
   const { _id: userId, userType } = req.user;
 
-  if (!bookingId) {
-    throw new ApiError(400, "bookingId required");
-  }
+  if (!bookingId) throw new ApiError(400, "bookingId required");
 
   const booking = await BookedService.findById(bookingId);
-  if (!booking) {
-    throw new ApiError(404, "Booking not found");
-  }
+  if (!booking) throw new ApiError(404, "Booking not found");
 
-  // USER MARKS COMPLETED
+  /* ==========================================
+     1️⃣ USER COMPLETING BOOKING
+  ========================================== */
   if (userType === "User" && booking.user.toString() === userId.toString()) {
-    if (!rating) throw new ApiError(400, "Rating required from user");
+
     booking.userCompleted = true;
-    booking.rating = { score: rating, review: review || "" };
+
+    // User confirming vendor completed (YES/NO) => DO NOT set vendorCompleted
+    // vendorCompleted from user is JUST information, not actual vendor action
+
+    // ⭐ Add rating only from user
+    if (rating) {
+      booking.rating.push({
+        score: rating,
+        review: review || "",
+        ratedBy: userId
+      });
+
+      const total = booking.rating.reduce((sum, r) => sum + r.score, 0);
+      booking.avgRating = total / booking.rating.length;
+    }
   }
 
-  // VENDOR MARKS COMPLETED
-  if (booking.vendor.toString() === userId.toString()) {
+  /* ==========================================
+     2️⃣ VENDOR COMPLETING BOOKING
+  ========================================== */
+  if (booking.vendor && booking.vendor.toString() === userId.toString()) {
     booking.vendorCompleted = true;
   }
 
-  // FINAL COMPLETION
+  /* ==========================================
+     3️⃣ COMPLETE ONLY WHEN BOTH TRUE
+  ========================================== */
   if (booking.userCompleted && booking.vendorCompleted) {
     booking.status = "Completed";
     booking.completedOn = new Date();
@@ -210,9 +226,11 @@ export const completeBookingController = asyncHandler(async (req, res) => {
   await booking.save();
 
   return res.json(
-    new ApiResponse(200, booking, "Completion updated successfully")
+    new ApiResponse(200, booking, "Booking updated successfully")
   );
 });
+
+
 
 /* ============================================================
    📌 ADMIN LIST ALL BOOKINGS

@@ -33,3 +33,6 @@ export const getUpcomingBookedServicesSchema = Joi.object({
   fromDate: Joi.date().iso().optional(),
   toDate: Joi.date().iso().optional(),
 });
+export const cancelBookingSchema = Joi.object({
+  bookingId: Joi.string().hex().length(24).required(),
+});

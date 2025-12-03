@@ -35,7 +35,9 @@ import {
   getBookedServicesByUserAndServiceController,
   getUserBookedServices,
   getCompletedBookedServicesController,
-  getUpcomingBookedServicesController
+  getUpcomingBookedServicesController,
+  cancelBookedServiceController,
+  startServiceByVendorController
 } from "../controllers/bookedService.controller.js";
 
 import { verifyJWT } from "../middlewares/authMiddleware.js";
@@ -59,6 +61,7 @@ router.get("/", getUserBookedServices);
  * GET /user/api/bookings/upcoming
  */
 router.get("/upcoming", getUpcomingBookedServicesController);
+router.patch("/start/:bookingId", startServiceByVendorController);
 
 /**
  * GET /user/api/bookings/completed
@@ -69,5 +72,5 @@ router.get("/completed", getCompletedBookedServicesController);
  * GET /user/api/bookings/service/:serviceId
  */
 router.get("/service/:serviceId", getBookedServicesByUserAndServiceController);
-
+router.patch("/cancel/:bookingId", cancelBookedServiceController); 
 export default router;

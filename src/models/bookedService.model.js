@@ -70,10 +70,17 @@ const bookedServiceSchema = new mongoose.Schema(
     userCompleted: { type: Boolean, default: false },
     vendorCompleted: { type: Boolean, default: false },
 
-    rating: {
-      score: { type: Number, min: 1, max: 5 },
-      review: { type: String },
-    },
+    rating: [
+  {
+    score: { type: Number, min: 1, max: 5 },
+    review: { type: String },
+    ratedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    ratedAt: { type: Date, default: Date.now }
+  }
+],
+
+avgRating: { type: Number, default: 0 },
+
 
     completedOn: { type: Date, default: null },
     assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", required: false },
