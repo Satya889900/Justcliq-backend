@@ -11,7 +11,8 @@ export const createBookedService = async (data) => {
   return BookedService.create({
     service: data.service,
     user: data.user,
-    vendor: data.vendor,
+     vendor: null,
+    vendorModel: null,
     bookedDate: data.bookedDate,
     bookedTime: data.bookedTime,
     status: data.status,   // ⭐ ADD THIS

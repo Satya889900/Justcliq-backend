@@ -18,22 +18,18 @@ export const bookServiceForUser = async (userId, serviceId, bookedDate, bookedTi
     throw new ApiError(404, "Service not found");
   }
 
-  let vendor = service.user;
 
   // If no vendor in service → fallback to Mohan
-  if (!vendor) {
-    vendor = await User.findOne({ firstName: "Mohan" });
-    if (!vendor) {
-      throw new ApiError(500, "Default vendor 'Mohan' not found in the database");
-    }
-  }
+ 
 
-  const booking = await createBookedService({
+   const booking = await createBookedService({
     service: service._id,
     user: userId,
-    vendor: vendor._id,
     bookedDate,
     bookedTime,
+    status: "Upcoming", 
+    vendor: null,
+    vendorModel: null
   });
 
   return booking.populate([

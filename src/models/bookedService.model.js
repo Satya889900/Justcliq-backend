@@ -56,6 +56,8 @@ const bookedServiceSchema = new mongoose.Schema(
       type: String,
       required: false,
       enum: ["User", "Admin"],
+      vendorAccepted: { type: Boolean, default: false },
+
     },
 
     bookedDate: { type: Date, required: true },

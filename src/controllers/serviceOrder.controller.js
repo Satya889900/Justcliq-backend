@@ -74,7 +74,9 @@ export const assignVendorController = [
     booking.vendor = vendorId;
     booking.vendorModel = "User";
     booking.assignedBy = adminId;
-    booking.status = "Scheduled";
+    booking.status = "Upcoming";   // keep upcoming
+booking.vendorAccepted = false;
+booking.vendorAssigned = true;
 
     await booking.save();
 
@@ -185,43 +187,73 @@ export const completeBookingController = asyncHandler(async (req, res) => {
   const booking = await BookedService.findById(bookingId);
   if (!booking) throw new ApiError(404, "Booking not found");
 
+  const isUser = userType === "User" && booking.user.toString() === userId.toString();
+  const isVendor = booking.vendor && booking.vendor.toString() === userId.toString();
+
+  if (!isUser && !isVendor) {
+    throw new ApiError(403, "Not authorized to update this booking");
+  }
+
   /* ==========================================
-     1️⃣ USER COMPLETES BOOKING
+     ✔ MARK COMPLETION
+     - Vendor completing should immediately set status = Completed
+     - User completing only sets userCompleted (rating may follow)
   ========================================== */
-  if (userType === "User" && booking.user.toString() === userId.toString()) {
-
+  if (isUser) {
     booking.userCompleted = true;
+  }
 
-    // ⭐ User can give rating
-    if (rating) {
-      booking.rating.push({
-        score: rating,
-        review: review || "",
-        ratedBy: userId
-      });
+  if (isVendor) {
+    // Mark vendor completed and immediately finalize booking
+    booking.vendorCompleted = true;
 
-      const total = booking.rating.reduce((sum, r) => sum + r.score, 0);
-      booking.avgRating = total / booking.rating.length;
+    // If booking not already Completed, set it now
+    if (booking.status !== "Completed") {
+      booking.status = "Completed";
+      booking.completedOn = booking.completedOn || new Date();
     }
   }
 
   /* ==========================================
-     2️⃣ VENDOR COMPLETES BOOKING
+     ✔ ADD RATING (User or Vendor)
+     - Allow rating after completion as well
+     - Prevent duplicate rating from same user for same booking (optional)
   ========================================== */
-  if (booking.vendor && booking.vendor.toString() === userId.toString()) {
-    booking.vendorCompleted = true;
+  if (rating !== undefined && rating !== null) {
+    // Optional: prevent same user rating twice for the same booking
+    const alreadyRated = Array.isArray(booking.rating) && booking.rating.some(r => String(r.ratedBy) === String(userId));
+    if (!alreadyRated) {
+      booking.rating = booking.rating || [];
+      booking.rating.push({
+        score: Number(rating),
+        review: review || "",
+        ratedBy: userId,
+        ratedAt: new Date(),
+      });
 
-    // ⭐ NEW RULE: If vendor marks complete → status = Completed
-    booking.status = "Completed";
-    booking.completedOn = new Date();
+      // recompute avgRating
+      const total = booking.rating.reduce((sum, r) => sum + (Number(r.score) || 0), 0);
+      booking.avgRating = Math.round((total / booking.rating.length) * 100) / 100;
+    } else {
+      // If you prefer to allow updates instead of ignoring, replace above behavior.
+      // For now, we ignore duplicate rating submissions.
+    }
   }
 
+  // Save once (defensive)
   await booking.save();
 
+  const populated = await BookedService.findById(bookingId)
+    .populate("service", "name cost image category")
+    .populate("vendor", "firstName lastName phone email")
+    .populate("user", "firstName lastName phone email");
+
   return res.json(
-    new ApiResponse(200, booking, "Booking updated successfully")
+    new ApiResponse(200, populated, "Booking updated successfully")
   );
 });
+
+
 
 
 

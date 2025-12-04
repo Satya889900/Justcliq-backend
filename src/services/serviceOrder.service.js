@@ -282,10 +282,14 @@ export const vendorAcceptBooking = async (bookingId, vendorId) => {
   }
 
   return await BookedService.findByIdAndUpdate(
-    bookingId,
-    { status: "Scheduled" },
-    { new: true }
-  ).populate("service user vendor assignedBy");
+  bookingId,
+  {
+    status: "Scheduled",       // status stays scheduled
+    vendorAccepted: true       // vendor accepted
+  },
+  { new: true }
+).populate("service user vendor assignedBy");
+
 };
 
 // Vendor reject
@@ -308,6 +312,8 @@ export const vendorRejectBooking = async (bookingId, vendorId) => {
       vendor: null,
       vendorModel: null,
       assignedBy: null,
+      vendorAccepted: false,
+
     },
     { new: true }
   ).populate("service user vendor assignedBy");
