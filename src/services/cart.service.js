@@ -9,6 +9,7 @@ import Product from "../models/product.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import UserProduct from "../models/userProduct.model.js";
 import Cart from "../models/cart.model.js";
+import { clearCartRepository } from "../repository/cart.repository.js";
 
 const unitFieldMap = {
   quantity: "quantity",
@@ -72,6 +73,12 @@ export const getCartService = async (userId) => {
     updatedAt: cart.updatedAt,
   };
 };
+
+export const clearCartService = async (userId) => {
+  const result = await clearCartRepository(userId);
+  return result;
+};
+
 // =======================================
 // 1. CREATE RAZORPAY ORDER (CART TOTAL)
 // =======================================

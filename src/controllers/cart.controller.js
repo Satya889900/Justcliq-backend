@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import * as cartService from "../services/cart.service.js";
 import { validate } from "../middlewares/validate.js";
 import { addToCartSchema, removeFromCartSchema,checkoutCartSchema } from "../validations/cart.validation.js";
+import { clearCartService } from "../services/cart.service.js";
 
 export const getCartController = asyncHandler(async (req, res) => {
   const cart = await cartService.getCartService(req.user._id);
@@ -57,3 +58,12 @@ export const decreaseQuantityController = asyncHandler(async (req, res) => {
 });
 
  
+export const clearCartController = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const cart = await cartService.clearCartService(userId);
+
+  return res.json(
+    new ApiResponse(200, cart, "All items removed from cart successfully")
+  );
+});

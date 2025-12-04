@@ -5,7 +5,8 @@ import {
   removeItemFromCartController,
    increaseQuantityController,
   decreaseQuantityController,
-  checkoutCartController
+  checkoutCartController,
+  clearCartController,
 } from "../controllers/cart.controller.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.post("/remove", removeItemFromCartController);
 router.post("/increase", increaseQuantityController);
 router.post("/decrease", decreaseQuantityController);
 router.post("/checkout", checkoutCartController);
+router.delete("/clear", clearCartController);
 
 
 export default router;

@@ -96,3 +96,14 @@ export const reduceProductStock = async (productId, unitField, qty) => {
 
   return product;
 };
+export const clearCartRepository = async (userId) => {
+  const cart = await Cart.findOne({ user: userId });
+
+  if (!cart) return null;
+
+  cart.items = []; // remove all items
+  cart.updatedAt = new Date();
+
+  await cart.save();
+  return cart;
+};
