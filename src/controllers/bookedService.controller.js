@@ -125,11 +125,13 @@ export const cancelBookedServiceController = [
   asyncHandler(async (req, res) => {
     const userId = req.user._id;
     const { bookingId } = req.params;
+    const { reason } = req.body;   // ⭐ GET CANCEL REASON
 
-    const result = await cancelBookedService(userId, bookingId);
+    const result = await cancelBookedService(userId, bookingId, reason);
 
     return res.status(200).json(
       new ApiResponse(200, result, "Service booking cancelled successfully")
     );
   }),
 ];
+

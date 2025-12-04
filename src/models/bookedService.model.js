@@ -67,6 +67,8 @@ const bookedServiceSchema = new mongoose.Schema(
       default: "Upcoming",
     },
 
+     cancelReason: { type: String, default: "" },  
+
     userCompleted: { type: Boolean, default: false },
     vendorCompleted: { type: Boolean, default: false },
 

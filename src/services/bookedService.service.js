@@ -120,7 +120,7 @@ export const startServiceByVendor = async (vendorId, bookingId) => {
 };
 
 
-export const cancelBookedService = async (userId, bookingId) => {
+export const cancelBookedService = async (userId, bookingId, reason = "") => {
   const booking = await BookedService.findById(bookingId);
 
   if (!booking) {
@@ -131,7 +131,6 @@ export const cancelBookedService = async (userId, bookingId) => {
     throw new ApiError(403, "You are not allowed to cancel this booking");
   }
 
-  // ⛔ Already Completed or Cancelled
   if (booking.status === "Completed") {
     throw new ApiError(400, "Completed bookings cannot be cancelled");
   }
@@ -140,8 +139,9 @@ export const cancelBookedService = async (userId, bookingId) => {
     throw new ApiError(400, "Booking is already cancelled");
   }
 
-  // Update status
+  // ✔ Correct cancel logic
   booking.status = "Cancelled";
+  booking.cancelReason = reason || "No reason provided";
   booking.userCompleted = false;
   booking.vendorCompleted = false;
 
@@ -153,3 +153,4 @@ export const cancelBookedService = async (userId, bookingId) => {
     { path: "user", select: "firstName lastName phone email" }
   ]);
 };
+
