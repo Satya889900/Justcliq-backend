@@ -177,7 +177,7 @@ export const getUpcomingOrdersController = asyncHandler(async (req, res) => {
    📌 COMPLETE BOOKING (USER or VENDOR)
 ============================================================ */
 export const completeBookingController = asyncHandler(async (req, res) => {
-  const { bookingId, vendorCompleted, rating, review } = req.body;
+  const { bookingId, rating, review } = req.body;
   const { _id: userId, userType } = req.user;
 
   if (!bookingId) throw new ApiError(400, "bookingId required");
@@ -186,16 +186,13 @@ export const completeBookingController = asyncHandler(async (req, res) => {
   if (!booking) throw new ApiError(404, "Booking not found");
 
   /* ==========================================
-     1️⃣ USER COMPLETING BOOKING
+     1️⃣ USER COMPLETES BOOKING
   ========================================== */
   if (userType === "User" && booking.user.toString() === userId.toString()) {
 
     booking.userCompleted = true;
 
-    // User confirming vendor completed (YES/NO) => DO NOT set vendorCompleted
-    // vendorCompleted from user is JUST information, not actual vendor action
-
-    // ⭐ Add rating only from user
+    // ⭐ User can give rating
     if (rating) {
       booking.rating.push({
         score: rating,
@@ -209,16 +206,12 @@ export const completeBookingController = asyncHandler(async (req, res) => {
   }
 
   /* ==========================================
-     2️⃣ VENDOR COMPLETING BOOKING
+     2️⃣ VENDOR COMPLETES BOOKING
   ========================================== */
   if (booking.vendor && booking.vendor.toString() === userId.toString()) {
     booking.vendorCompleted = true;
-  }
 
-  /* ==========================================
-     3️⃣ COMPLETE ONLY WHEN BOTH TRUE
-  ========================================== */
-  if (booking.userCompleted && booking.vendorCompleted) {
+    // ⭐ NEW RULE: If vendor marks complete → status = Completed
     booking.status = "Completed";
     booking.completedOn = new Date();
   }
@@ -229,6 +222,7 @@ export const completeBookingController = asyncHandler(async (req, res) => {
     new ApiResponse(200, booking, "Booking updated successfully")
   );
 });
+
 
 
 

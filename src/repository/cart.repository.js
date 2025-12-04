@@ -5,102 +5,93 @@ import UserProduct from "../models/userProduct.model.js"; // <-- FIX
 import Product from "../models/product.model.js";
 
 /**
- * Get Cart by user and populate user products
+ * GET CART (auto-populates by refPath)
  */
 export const getCartByUser = async (userId) => {
-  let cart = await Cart.findOne({ user: userId })
+  return await Cart.findOne({ user: userId })
     .populate({
-      path: "items.userProductId",
-      model: "UserProduct"
+      path: "items.product",
+      strictPopulate: false
     })
-    .populate({
-      path: "items.adminProductId",
-      model: "Product"
-    });
-
-  if (!cart) return { user: userId, items: [] };
-
-  return cart;
-};
-
-
-
-/**
- * Add item to cart
- */
-export const addItemToCart = async (userId, productId, quantity) => {
-  let cart = await Cart.findOne({ user: userId });
-
-  if (!cart) {
-    cart = new Cart({ user: userId, items: [] });
-  }
-
-  const existingItem = cart.items.find(
-    (item) => item.product.toString() === productId
-  );
-
-  if (existingItem) {
-    existingItem.quantity += quantity;
-  } else {
-    cart.items.push({ product: productId, quantity });
-  }
-
-  cart.updatedAt = new Date();
-  await cart.save();
-
-  return cart.populate({
-    path: "items.product",
-    model: "UserProduct",
-  });
+    .lean();
 };
 
 /**
- * Remove item from cart
+ * REMOVE ITEM
  */
 export const removeItemFromCart = async (userId, productId) => {
   const cart = await Cart.findOne({ user: userId });
   if (!cart) return null;
 
   cart.items = cart.items.filter(
-    (item) => item.product.toString() !== productId
+    (i) => i.product.toString() !== productId
   );
 
-  cart.updatedAt = new Date();
   await cart.save();
-
-  return cart.populate({
-    path: "items.product",
-    model: "UserProduct",
-  });
-};
-
-/**
- * Clear the entire cart
- */
-export const clearCart = async (userId) => {
-  const cart = await Cart.findOne({ user: userId });
-  if (!cart) return null;
-
-  cart.items = [];
-  cart.updatedAt = new Date();
-  await cart.save();
-
   return cart;
 };
 
+
 /**
- * Reduce stock from UserProduct (dynamic fields: quantity/kg/liters)
+ * CLEAN CART (remove invalid rows)
  */
-export const reduceProductStock = async (productId, unitField, quantity) => {
-  const product = await UserProduct.findById(productId); // <-- FIXED: must use UserProduct
+export const cleanCart = async (userId) => {
+  const cart = await Cart.findOne({ user: userId });
+  if (!cart) return;
 
-  if (!product) return null;
+  cart.items = cart.items.filter(
+    (i) => i.product && i.productModel
+  );
 
-  if (product[unitField] < quantity) {
-    return false; // insufficient stock
+  await cart.save();
+};
+
+
+/**
+ * ADD ITEM TO CART
+ */
+export const addItemToCart = async (userId, productId, quantity, modelName) => {
+  let cart = await Cart.findOne({ user: userId });
+  if (!cart) {
+    cart = await Cart.create({ user: userId, items: [] });
   }
 
-  product[unitField] -= quantity;
+  // check existing
+  const existing = cart.items.find(
+    (i) =>
+      i.product.toString() === productId &&
+      i.productModel === modelName
+  );
+
+  if (existing) {
+    existing.quantity += quantity;
+  } else {
+    cart.items.push({
+      product: productId,
+      productModel: modelName,  // 🔥 REQUIRED!
+      quantity
+    });
+  }
+
+  await cart.save();
+
+  return await Cart.findById(cart._id)
+    .populate({
+      path: "items.product",
+      strictPopulate: false
+    });
+};
+
+
+
+
+export const reduceProductStock = async (productId, unitField, qty) => {
+  const product = await UserProduct.findById(productId);
+  if (!product) return false;
+
+  if (product[unitField] < qty) return false;
+
+  product[unitField] -= qty;
   await product.save();
 
   return product;

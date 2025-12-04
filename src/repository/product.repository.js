@@ -1,6 +1,5 @@
 import Product from "../models/product.model.js";
-
-
+import UserProduct from "../models/userProduct.model.js"; 
 
 // Fetch all products
 export const getAllProducts = async () =>
@@ -29,13 +28,28 @@ export const updateProduct = async (id, data) =>
 export const deleteProduct = async (id) => Product.findByIdAndDelete(id);
 
 // Fetch by category
-export const getProductsByCategory = async (categoryId) =>
-  Product.find({ category: categoryId })
+export const getProductsByCategory = async (categoryId) => {
+  // Get Admin products
+  const adminProducts = await Product.find({ category: categoryId })
     .populate("category", "name")
     .populate("user", "firstName lastName email")
-    .sort({ userType: -1, createdAt: -1 })
     .sort({ createdAt: -1 })
-    .lean();// Admins first, newest first
+    .lean();
+
+  // Get User products (only approved)
+  const userProducts = await UserProduct.find({
+    category: categoryId,
+    status: "Approved"
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Merge (Admin first, then User)
+  return [...adminProducts, ...userProducts];
+};
+
 
 
 // Delete all products by category

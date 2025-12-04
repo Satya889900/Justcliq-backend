@@ -193,7 +193,6 @@ router.use("/service-provider", serviceProviderRoutes);
 
 
 router.use("/vendor/api/orders", verifyJWT(["User"]), vendorOrderRoutes);
-router.use(verifyJWT(["User"]));
 // router.use(verifyJWT(["User"])); // This was causing the error by re-validating and blocking Admins
 router.patch("/update-status", updateBookedServiceStatusController);
 

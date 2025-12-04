@@ -22,23 +22,12 @@ import cloudinary from "../config/cloudinary.js";
 export const addUserProductController = asyncHandler(async (req, res) => {
   const { name, category, cost, unit } = req.body;
 
-  let imageUrl = null;
-
-  // ⚡ FASTEST CLOUDINARY UPLOAD (memory buffer → stream)
-  if (req.file) {
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: "productImages" },
-        (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        }
-      );
-      stream.end(req.file.buffer);
-    });
-
-    imageUrl = uploadResult.secure_url;
+  if (!req.file) {
+    throw new ApiError(400, "Image file is required");
   }
+
+  // CloudinaryStorage already uploads the image
+  const imageUrl = req.file.path;   // Cloudinary URL
 
   const newProductData = {
     name,
@@ -60,6 +49,7 @@ export const addUserProductController = asyncHandler(async (req, res) => {
     new ApiResponse(201, newProduct, "Product added successfully (Pending Approval)")
   );
 });
+
 
 
 

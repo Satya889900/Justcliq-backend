@@ -11,7 +11,8 @@ import {
   getProductsByCategorySchema,
   getProductCategorySchema,
 } from "../validations/product.validation.js";
-
+// controllers/product.controller.js (add import at top: optionally)
+import { fetchMergedProductsByCategoryService } from "../services/product.service.js";
 
 
 // Add product with multiple images
@@ -81,5 +82,27 @@ export const getCategoryNameByProductController = [
     const { productId } = req.params;
     const result = await service.fetchCategoryNameByProductService(productId);
     res.json(new ApiResponse(200, result, "Category name fetched successfully"));
+  }),
+];
+
+
+/**
+ * Admin: Get merged products in category (Admin + Approved User products)
+ * Query params: page, limit, sortBy, order
+ */
+export const getMergedProductsByCategoryController = [
+  validate(getProductsByCategorySchema, "params"), // reuse existing validation for categoryId
+  asyncHandler(async (req, res) => {
+    const { categoryId } = req.params;
+    const { page, limit, sortBy, order } = req.query;
+
+    const result = await fetchMergedProductsByCategoryService(categoryId, {
+      page,
+      limit,
+      sortBy,
+      order,
+    });
+
+    return res.json(new ApiResponse(200, result, "Merged products fetched successfully"));
   }),
 ];

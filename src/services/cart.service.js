@@ -201,45 +201,66 @@ export const verifyAndProcessPaymentService = async (
 
 
 export const addItemToCartService = async (userId, productId, qty = 1) => {
-
+  // 1️⃣ Detect model
   let userProduct = await UserProduct.findById(productId);
-  let adminProduct = null;
+  let productModel = userProduct ? "UserProduct" : "Product";
 
-  // If not UserProduct → try Admin Product
-  if (!userProduct) {
-    adminProduct = await Product.findById(productId);
-  }
-
-  if (!userProduct && !adminProduct) {
+  let productDoc = userProduct || await Product.findById(productId);
+  if (!productDoc) {
     throw new ApiError(404, "Product not found");
   }
 
+  // 2️⃣ Fetch cart
   let cart = await Cart.findOne({ user: userId });
   if (!cart) {
     cart = await Cart.create({ user: userId, items: [] });
   }
 
-  // SAFE MATCHING (avoid error)
-  const matchItem = cart.items.find((i) =>
-    (i.userProductId && i.userProductId.toString() === productId) ||
-    (i.adminProductId && i.adminProductId.toString() === productId)
+  // 3️⃣ Check if already in cart
+  let existing = cart.items.find(
+    (it) =>
+      it.product?.toString() === productId &&
+      it.productModel === productModel
   );
 
-  if (matchItem) {
-    matchItem.quantity += qty;
+  let updatedItem;
+
+  if (existing) {
+    // Increase quantity
+    existing.quantity += qty;
+
+    updatedItem = {
+      product: productDoc,
+      productModel,
+      quantity: existing.quantity
+    };
+
   } else {
-    cart.items.push({
-      userProductId: userProduct ? userProduct._id : null,
-      adminProductId: adminProduct ? adminProduct._id : null,
-      quantity: qty,
-    });
+    // Add new item
+    const newItem = {
+      product: productId,
+      productModel,
+      quantity: qty
+    };
+
+    cart.items.push(newItem);
+
+    updatedItem = {
+      product: productDoc,
+      productModel,
+      quantity: qty
+    };
   }
 
   cart.updatedAt = new Date();
   await cart.save();
 
-  return cart;
+  return updatedItem;  // 🔥 return ONLY the updated/added product
 };
+
+
+
+
 
 
 

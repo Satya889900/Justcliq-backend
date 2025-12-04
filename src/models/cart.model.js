@@ -4,21 +4,17 @@ const cartItemSchema = new mongoose.Schema({
   product: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
-    refPath: "items.productModel",   // 🔥 Dynamic model reference
+    refPath: "items.productModel"   // 🔥 Dynamic reference
   },
-
   productModel: {
     type: String,
     required: true,
-    enum: ["UserProduct", "Product"], // 🔥 Support both models
+    enum: ["UserProduct", "Product"],  // 🔥 Correct enum
   },
-
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1
-  }
+  quantity: { type: Number, required: true, min: 1 },
 });
+
+
 
 const cartSchema = new mongoose.Schema({
   user: {

@@ -14,10 +14,19 @@ export const addItemToCartController = [
   validate(addToCartSchema, "body"),
   asyncHandler(async (req, res) => {
     const { productId, quantity } = req.body;
-    const cart = await cartService.addItemToCartService(req.user._id, productId, quantity);
-    res.json(new ApiResponse(200, cart, "Item added to cart successfully"));
+
+    const updatedItem = await cartService.addItemToCartService(
+      req.user._id,
+      productId,
+      quantity
+    );
+
+    return res.json(
+      new ApiResponse(200, updatedItem, "Item added to cart")
+    );
   }),
 ];
+
 
 export const removeItemFromCartController = [
   validate(removeFromCartSchema, "body"),

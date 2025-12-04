@@ -1,7 +1,7 @@
 import { ApiError } from "../utils/ApiError.js";
 import * as repo from "../repository/product.repository.js";
 import ProductCategory from "../models/productCategory.model.js";
-
+import UserProduct from "../models/userProduct.model.js";
 import mongoose from "mongoose";
 
 // Map unit to dynamic field
@@ -169,5 +169,72 @@ export const fetchCategoryNameByProductService = async (productId) => {
     // serviceName: service.name,
     categoryId: product.category._id,
     categoryName: product.category.name
+  };
+};
+
+
+/**
+ * Fetch merged products (Admin Product + Approved UserProduct) for a category
+ * Supports pagination, sorting and optional status filter.
+ *
+ * @param {String} categoryId
+ * @param {Object} options  { page=1, limit=50, sortBy='createdAt', order='desc' }
+ * @returns {Object} { total, page, limit, products }
+ */
+export const fetchMergedProductsByCategoryService = async (
+  categoryId,
+  options = {}
+) => {
+  const page = parseInt(options.page, 10) || 1;
+  const limit = parseInt(options.limit, 10) || 50;
+  const skip = (page - 1) * limit;
+  const sortBy = options.sortBy || "createdAt";
+  const order = options.order === "asc" ? 1 : -1;
+  const sort = { [sortBy]: order };
+
+  // Admin products (status Approved)
+  const adminQuery = Product.find({
+    category: categoryId,
+    status: "Approved",
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email userType")
+    .sort(sort)
+    .lean();
+
+  // User products (status Approved)
+  const userQuery = UserProduct.find({
+    category: categoryId,
+    status: "Approved",
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email userType")
+    .sort(sort)
+    .lean();
+
+  // Execute in parallel
+  const [adminProducts, userProducts] = await Promise.all([
+    adminQuery.skip(skip).limit(limit).exec(),
+    userQuery.skip(skip).limit(limit).exec(),
+  ]);
+
+  // For total count (without pagination) — helpful for frontend
+  const [adminCount, userCount] = await Promise.all([
+    Product.countDocuments({ category: categoryId, status: "Approved" }),
+    UserProduct.countDocuments({ category: categoryId, status: "Approved" }),
+  ]);
+
+  // Annotate source to differentiate
+  const adminAnnotated = adminProducts.map((p) => ({ ...p, source: "Admin" }));
+  const userAnnotated = userProducts.map((p) => ({ ...p, source: "User" }));
+
+  // Merge lists (you can decide order — here admin first then user)
+  const merged = [...adminAnnotated, ...userAnnotated];
+
+  return {
+    total: adminCount + userCount,
+    page,
+    limit,
+    products: merged,
   };
 };
