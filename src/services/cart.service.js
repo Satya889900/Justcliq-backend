@@ -16,15 +16,12 @@ const unitFieldMap = {
   kg: "weight",
   liters: "volume",
 };
-/**
- * Return cart with each item's product populated, plus:
- *  - itemSubtotal (cost * qty)
- *  - totalAmount (sum of itemSubtotals)
- */
+// -----------------------
+// GET CART
+// -----------------------
 export const getCartService = async (userId) => {
   const cart = await cartRepo.getCartByUser(userId);
 
-  // ensure consistent shape when empty
   if (!cart || !cart.items || cart.items.length === 0) {
     return {
       items: [],
@@ -38,7 +35,6 @@ export const getCartService = async (userId) => {
   const items = cart.items.map((it) => {
     const product = it.product || null;
 
-    // If product missing, set subtotal 0
     if (!product) {
       return {
         ...it.toObject?.() ?? it,
@@ -47,7 +43,6 @@ export const getCartService = async (userId) => {
       };
     }
 
-    // Ensure numeric values (guard against strings)
     const cost = Number(product.cost) || 0;
     const qty = Number(it.quantity) || 0;
 
@@ -62,7 +57,6 @@ export const getCartService = async (userId) => {
     };
   });
 
-  // Round total amount to 2 decimals
   totalAmount = Math.round((totalAmount + Number.EPSILON) * 100) / 100;
 
   return {
@@ -74,137 +68,133 @@ export const getCartService = async (userId) => {
   };
 };
 
+// -----------------------
+// CLEAR CART SERVICE
+// -----------------------
 export const clearCartService = async (userId) => {
-  const result = await clearCartRepository(userId);
-  return result;
+  return await clearCartRepository(userId);
 };
 
-// =======================================
-// 1. CREATE RAZORPAY ORDER (CART TOTAL)
-// =======================================
-export const createRazorpayOrderService = async (userId) => {
-  try {
-    console.log("Service called for user:", userId);
+// ------------------------------------------------
+// VERIFY PAYMENT + PROCESS ORDERS
+// ------------------------------------------------
 
-    const cart = await getCartService(userId);
-    console.log("User Cart:", cart);
-
-    if (!cart || cart.items.length === 0) {
-      console.log("❌ Cart empty");
-      throw new ApiError(400, "Cart is empty");
-    }
-
-    console.log("Creating Razorpay order...");
-
-    const options = {
-      amount: cart.totalAmount * 100, // amount in the smallest currency unit
-      currency: process.env.RAZORPAY_CURRENCY || "INR",
-      receipt: `rcpt_${userId.toString().slice(-6)}_${Date.now()}`,
-
-      payment_capture: 1, // auto capture
-    };
-
-    const razorOrder = await razorpay.orders.create(options);
-    console.log("Razorpay order:", razorOrder);
-
-    await Payment.create({
-      user: userId,
-      razorpayOrderId: razorOrder.id,
-      amount: razorOrder.amount,
-    });
-    console.log("Payment DB row created.");
-
-   return {
-  orderId: razorOrder.id,
-  amount: razorOrder.amount,
-  currency: razorOrder.currency,
-  key: process.env.RAZORPAY_KEY_ID
-};
-
-
-  } catch (err) {
-    console.log("🔥 Razorpay Service Error:", err.message);
-    throw err;
-  }
-};
-
-// =======================================
-// 2. VERIFY PAYMENT + PROCESS ORDERS
-// =======================================
 export const verifyAndProcessPaymentService = async (
   userId,
   { razorpay_order_id, razorpay_payment_id, razorpay_signature }
 ) => {
-  // verify signature
+
+  console.log("🧾 Incoming Verify Data:", {
+    razorpay_order_id, razorpay_payment_id, razorpay_signature
+  });
+
+  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+    throw new ApiError(400, "Missing payment verification fields");
+  }
+
   const secret = process.env.RAZORPAY_KEY_SECRET;
-  const hash = crypto.createHmac("sha256", secret)
-    .update(razorpay_order_id + "|" + razorpay_payment_id)
+  if (!secret) throw new ApiError(500, "Razorpay secret missing");
+
+  const generatedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
     .digest("hex");
 
-  if (hash !== razorpay_signature) {
-    await Payment.findOneAndUpdate(
-      { razorpayOrderId: razorpay_order_id },
-      { status: "failed" }
-    );
+  if (generatedSignature !== razorpay_signature) {
+    // store failed attempt
+    await Payment.create({
+      user: userId,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      status: "failed",
+      meta: { reason: "signature_mismatch" }
+    });
+
     throw new ApiError(400, "Invalid payment signature");
   }
 
-  // mark payment successful
-  await Payment.findOneAndUpdate(
-    { razorpayOrderId: razorpay_order_id },
-    {
-      status: "paid",
-      razorpayPaymentId: razorpay_payment_id,
-      razorpaySignature: razorpay_signature,
-    }
-  );
+  // Store valid payment
+  await Payment.create({
+    user: userId,
+    razorpayOrderId: razorpay_order_id,
+    razorpayPaymentId: razorpay_payment_id,
+    razorpaySignature: razorpay_signature,
+    status: "paid",
+  });
 
-  // PROCESS ORDERS USING YOUR EXISTING LOGIC
+  // Get cart for this user
   const cart = await cartRepo.getCartByUser(userId);
-  const validItems = cart.items.filter((it) => it.product && it.product._id);
+
+  if (!cart || !cart.items || cart.items.length === 0) {
+    throw new ApiError(400, "Cart is empty");
+  }
+
+  const validItems = cart.items.filter(it => it.product && it.product._id);
+
+  if (validItems.length === 0) {
+    await clearCartRepository(userId);   // FIXED
+    throw new ApiError(400, "Cart contains invalid items");
+  }
 
   const orders = [];
 
+  // Process each product in cart
   for (const item of validItems) {
-    const userProduct = item.product;
+    const product = item.product;
+    const unitField = unitFieldMap[product.unit];
 
-    const unitField = unitFieldMap[userProduct.unit];
-    if (unitField && item.quantity > userProduct[unitField]) {
+    if (unitField && item.quantity > product[unitField]) {
       throw new ApiError(
         400,
-        `Only ${userProduct[unitField]} ${userProduct.unit} left for ${userProduct.name}`
+        `Only ${product[unitField]} ${product.unit} left for ${product.name}`
       );
     }
 
-    await cartRepo.reduceProductStock(
-      userProduct._id,
-      unitField,
-      item.quantity
-    );
+    // Reduce stock
+    await cartRepo.reduceProductStock(product._id, unitField, item.quantity);
 
+    // Create product order
     const order = await ProductOrder.create({
-      product: userProduct._id,
-      productName: userProduct.name,
-      quantity: `${item.quantity} ${userProduct.unit}`,
-      cost: userProduct.cost * item.quantity,
-      customer: userId,
-      vendor: userProduct.user,
-      vendorType: userProduct.userType,
-      orderedOn: new Date(),
-      status: "Upcoming",
-      payment: {
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
-      },
-    });
+  product: product._id,
+  productName: product.name,
+  quantity: `${item.quantity} ${product.unit}`,
+  cost: product.cost * item.quantity,
+  customer: userId,
+  orderedOn: new Date(),
+  status: "Upcoming",
+
+  // ⭐ NO AUTO ASSIGN
+  vendor: null,
+  vendorType: null,
+  vendorAssigned: false,
+  assignedBy: null,
+  assignedByType: null,
+
+  payment: {
+    razorpayOrderId: razorpay_order_id,
+    razorpayPaymentId: razorpay_payment_id,
+  },
+});
+
 
     orders.push(order);
   }
 
-  await cartRepo.clearCart(userId);
+  // -----------------------------
+  // FIXED: Clear cart correctly
+  // -----------------------------
+  await clearCartRepository(userId);
 
   return orders;
 };
+
+// ------------------------------------------------
+// CART FUNCTIONS (no changes)
+// ------------------------------------------------
+
+// ... (rest of your cart functions exactly same)
+
 
 
 export const addItemToCartService = async (userId, productId, qty = 1) => {
@@ -265,12 +255,6 @@ export const addItemToCartService = async (userId, productId, qty = 1) => {
   return updatedItem;  // 🔥 return ONLY the updated/added product
 };
 
-
-
-
-
-
-
 export const removeItemFromCartService = async (userId, productId) => {
   return await cartRepo.removeItemFromCart(userId, productId);
 };
@@ -297,10 +281,6 @@ export const increaseQuantityService = async (userId, productId) => {
 
   return updatedItem; // 🔥 return ONLY increased item
 };
-
-
-
-
 export const decreaseQuantityService = async (userId, productId) => {
   let cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart) throw new ApiError(400, "Cart empty");
@@ -330,9 +310,6 @@ export const decreaseQuantityService = async (userId, productId) => {
 
   return updatedItem; // return only updated item
 };
-
-
-
 // src/services/cart.service.js (excerpt)
 export const checkoutCartService = async (userId) => {
   const cart = await cartRepo.getCartByUser(userId);

@@ -62,6 +62,7 @@ export const assignVendorToOrder = async (
       vendor: vendorId,
       vendorType,
       status: "Out for Delivery",
+      vendorAssigned: true,
       assignedBy,
       assignedByType,
     },

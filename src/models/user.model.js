@@ -25,7 +25,8 @@ const userSchema = new mongoose.Schema({
   refreshToken: { type: String },
   otp: { type: String },
   otpExpiry: { type: Date },
-
+  isLoggedOut: { type: Boolean, default: false },
+  tokenInvalidBefore: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -44,5 +45,7 @@ userSchema.methods.generateRefreshToken = function () {
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || "7d" }
   );
 };
+
+
 
 export default mongoose.model("User", userSchema);

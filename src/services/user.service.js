@@ -152,7 +152,10 @@ export const loginWithOtpService = async (phone, otp) => {
 
   // Clear OTP after login
   await clearUserOtp(phone);
-
+// Reset logout flags
+user.isLoggedOut = false;
+user.tokenInvalidBefore = null;
+await user.save();
   // Tokens
   const accessToken = user.generateAuthToken();
   const refreshToken = user.generateRefreshToken();

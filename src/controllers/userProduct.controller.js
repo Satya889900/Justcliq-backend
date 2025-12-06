@@ -13,6 +13,8 @@ import {
 } from "../services/userProduct.service.js";
 
 import Product from "../models/userProduct.model.js";
+import UserProduct from "../models/userProduct.model.js";
+
 
 /* ============================================================
    USER: ADD PRODUCT
@@ -147,4 +149,19 @@ export const getApprovedProductsByCategoryController = asyncHandler(async (req, 
 export const deleteUserProductController = asyncHandler(async (req, res) => {
   const result = await deleteUserProductService(req.params.productId, req.user._id);
   res.json(new ApiResponse(200, result, "Product deleted successfully"));
+});
+export const getMyApprovedProductsController = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  // Fetch only products created by THIS user AND approved by admin
+  const products = await UserProduct.find({
+    user: userId,
+    status: "Approved"
+  })
+    .populate("category", "name")
+    .lean();
+
+  return res.json(
+    new ApiResponse(200, products, "Your approved products fetched successfully")
+  );
 });

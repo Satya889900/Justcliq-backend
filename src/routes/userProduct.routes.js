@@ -9,7 +9,8 @@ import {
   getApprovedProductByIdController,
   getApprovedProductsByCategoryController,
   updateUserProductController,
-  deleteUserProductController
+  deleteUserProductController,
+  getMyApprovedProductsController,
 } from "../controllers/userProduct.controller.js";
 
 const router = Router();
@@ -21,6 +22,8 @@ router.post("/add", uploadProduct.single("image"), addUserProductController);
 
 // 👤 User's own products
 router.get("/my-products", getMyProductsController);
+router.get("/my-approved-products", verifyJWT(["User"]), getMyApprovedProductsController);
+
 
 // 🟢 Approved products
 router.get("/", getApprovedProductsController);

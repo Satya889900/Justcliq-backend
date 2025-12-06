@@ -3,28 +3,50 @@ import * as orderRepo from "../repository/productOrder.repository.js";
 import { ApiError } from "../utils/ApiError.js";
 
 export const getOrders = async (startDate, endDate, status) => {
-  const orders= await orderRepo.fetchOrdersWithUsersAndVendors(startDate, endDate, status);
-   
-  return orders.map(order => ({
-    id: order._id,
-    vendorId:order.vendor._id,
-    userName: order.customer
-      ? `${order.customer.firstName} ${order.customer.lastName}`
-      : null,
-    vendorType:order.vendorType,
-    vendorName:  order.assignedByType === "Admin" && order.vendor
-        ? `${order.vendor.firstName} ${order.vendor.lastName}`
+  const orders = await orderRepo.fetchOrdersWithUsersAndVendors(
+    startDate,
+    endDate,
+    status
+  );
+
+  return orders.map(order => {
+    const canAssign = order.status === "Upcoming";
+    const vendorAssigned = order.vendorAssigned; // ⭐ FIXED
+
+    return {
+      id: order._id,
+
+      vendorId: vendorAssigned ? order.vendor?._id : null,
+      vendorType: vendorAssigned ? order.vendorType : null,
+      vendorName:
+        vendorAssigned && order.vendor
+          ? `${order.vendor.firstName} ${order.vendor.lastName}`
+          : null,
+
+      userName: order.customer
+        ? `${order.customer.firstName} ${order.customer.lastName}`
         : null,
- 
-    productName: order.productName || (order.product ? order.product.name : null),
-    quantity: order.quantity,
-    cost: order.cost,
-    orderedOn: order.orderedOn,
-     completedOn:
-      order.status === "Delivered" ? order.updatedAt : null,
-    status: order.status,
-  }));
+
+      productName:
+        order.productName || (order.product ? order.product.name : null),
+
+      quantity: order.quantity,
+      cost: order.cost,
+      orderedOn: order.orderedOn,
+      completedOn: order.status === "Delivered" ? order.updatedAt : null,
+      status: order.status,
+
+      canAssign,
+      vendorAssigned, // ⭐ Send to frontend
+    };
+  });
 };
+
+
+
+
+
+
 
 
 export const getProductPosterDetails = async (productName) => {

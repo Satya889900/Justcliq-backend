@@ -15,15 +15,15 @@ const productOrderSchema = new mongoose.Schema({
   vendor: {
     type: mongoose.Schema.Types.ObjectId,
     refPath: 'vendorType', // Dynamic reference based on the vendorType field
-    required: true,
+    default: null,
   },
 
   // The model name for the vendor reference
-  vendorType: {
-    type: String,
-    required: true,
-    enum: ["User", "Admin"], // Vendor can be a User or an Admin
-  },
+ vendorType: {
+  type: String,
+  enum: ["User", "Admin", null],
+  default: null,
+},
   
   // Reference to the customer who placed the order
   customer: {
