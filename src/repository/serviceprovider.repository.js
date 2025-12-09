@@ -289,13 +289,11 @@ export const findServiceProviderByServiceId = async (serviceId) => {
 export const fetchApprovedProvidersByServiceName = async (serviceName) => {
   if (!serviceName) return [];
 
-  // Step 1: get services with this name
   const services = await Service.find({ name: serviceName }).lean();
   if (!services || services.length === 0) return [];
 
   const serviceIds = services.map(s => s._id);
 
-  // Step 2: get providers that are APPROVED
   const approvedProviders = await ServiceProvider.aggregate([
     {
       $match: {
@@ -304,7 +302,7 @@ export const fetchApprovedProvidersByServiceName = async (serviceName) => {
       }
     },
 
-    // JOIN USER details
+    // ✅ JOIN USER
     {
       $lookup: {
         from: "users",
@@ -315,7 +313,30 @@ export const fetchApprovedProvidersByServiceName = async (serviceName) => {
     },
     { $unwind: "$userData" },
 
-    // ADD computed field for sorting Justcliq first
+    // ✅ ✅ JOIN BOOKINGS (THIS IS WHAT YOU WERE MISSING)
+    {
+      $lookup: {
+        from: "bookedservices",
+        localField: "serviceId",
+        foreignField: "service",
+        as: "bookings"
+      }
+    },
+
+    // ✅ ✅ CALCULATE AVG RATING FROM BOOKINGS
+    {
+      $addFields: {
+        avgRating: {
+          $cond: [
+            { $gt: [{ $size: "$bookings" }, 0] },
+            { $avg: "$bookings.avgRating" },
+            0
+          ]
+        }
+      }
+    },
+
+    // ✅ Justcliq priority
     {
       $addFields: {
         isJustcliqVendor: {
@@ -328,15 +349,16 @@ export const fetchApprovedProvidersByServiceName = async (serviceName) => {
       }
     },
 
-    // SORT Justcliq vendors first → then recent
+    // ✅ SORT: Justcliq → Rating → Newest
     {
       $sort: {
         isJustcliqVendor: -1,
+        avgRating: -1,
         createdAt: -1
       }
     },
 
-    // FINAL RETURN FIELDS
+    // ✅ ✅ FINAL RESPONSE NOW INCLUDES RATING
     {
       $project: {
         _id: "$userData._id",
@@ -345,6 +367,7 @@ export const fetchApprovedProvidersByServiceName = async (serviceName) => {
         phone: "$userData.phone",
         businessName: "$userData.businessName",
         profileImage: "$userData.profileImage",
+        avgRating: 1,          // ✅ NOW WILL COME
         isJustcliqVendor: 1
       }
     }

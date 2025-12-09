@@ -356,6 +356,9 @@ export const viewAllBookedServices = async () => {
     status: b.status,
     availedOn: b.bookedDate,
     completedOn: b.completedOn || null,
+      // ✅ ADD
+  avgRating: b.avgRating || 0,
+  rating: b.rating || [],
     action: "View / Update",
   }));
 };
@@ -381,6 +384,8 @@ export const getBookingsService = async () => {
       status: b.status,
       availedOn: b.bookedDate,
       completedOn: b.completedOn || null,
+       avgRating: b.avgRating || 0,
+  rating: b.rating || [],
     });
   }
 

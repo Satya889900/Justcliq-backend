@@ -102,18 +102,37 @@ export const updateUserProductService = async (productId, data, userId) => {
 // ===============================================
 // OTHER SERVICES (UNCHANGED)
 // ===============================================
+
+
+
 export const getUserProductByIdService = async (productId) => {
-  const product = await Product.findOne({
+  let product = await Product.findOne({
     _id: productId,
     status: "Approved",
   })
     .populate("category", "name")
-    .populate("user", "firstName lastName profileImage phone")
+    .populate("user", "firstName lastName email")
     .lean();
 
-  if (!product) throw new ApiError(404, "Product not found or not approved");
+  // ✅ If not found in ADMIN products, check USER products
+  if (!product) {
+    product = await UserProduct.findOne({
+      _id: productId,
+      status: "Approved",
+    })
+      .populate("category", "name")
+      .populate("user", "firstName lastName email")
+      .lean();
+  }
+
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
   return product;
 };
+
+
 
 export const getAllApprovedProductsService = async () => {
   return await Product.find(

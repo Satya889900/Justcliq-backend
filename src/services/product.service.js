@@ -2,6 +2,7 @@ import { ApiError } from "../utils/ApiError.js";
 import * as repo from "../repository/product.repository.js";
 import ProductCategory from "../models/productCategory.model.js";
 import UserProduct from "../models/userProduct.model.js";
+import Product from "../models/product.model.js";
 import mongoose from "mongoose";
 
 // Map unit to dynamic field
@@ -17,11 +18,41 @@ export const fetchAllProductsService = async () => {
 };
 
 // Fetch product by ID
-export const fetchProductByIdService = async (id) => {
-  const product = await repo.getProductById(id);
-  if (!product) throw new ApiError(404, "Product not found");
+
+
+export const fetchProductByIdService = async (productId) => {
+  // ✅ 1. ADMIN PRODUCT → NO APPROVAL REQUIRED
+  let product = await Product.findOne({
+    _id: productId,
+    userType: "Admin",   // ✅ admin product
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+
+    .lean();
+
+  // ✅ 2. USER PRODUCT → MUST BE APPROVED
+  if (!product) {
+    product = await UserProduct.findOne({
+      _id: productId,
+      userType: "User",
+      status: "Approved",  // ✅ approval required
+    })
+      .populate("category", "name")
+      .populate("user", "firstName lastName email")
+      .lean();
+  }
+
+  // ❌ 3. OTHERWISE → NOT FOUND
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
   return product;
 };
+
+
+
 
 // Add product (handle single or multiple images)
 // Add product (handle single or multiple images, category name or ID)
@@ -124,8 +155,26 @@ export const deleteProductService = async (id) => {
 
 // Fetch products by category
 export const fetchProductsByCategoryService = async (categoryId) => {
-  const products = await repo.getProductsByCategory(categoryId);
-  return products;
+  // ✅ Admin products → always visible
+  const adminProducts = await Product.find({
+    category: categoryId,
+    userType: "Admin", // ✅ admin visible without approval
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+    .lean();
+
+  // ✅ User products → only approved
+  const userProducts = await UserProduct.find({
+    category: categoryId,
+    userType: "User",
+    status: "Approved", // ✅ approval required
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+    .lean();
+
+  return [...adminProducts, ...userProducts];
 };
 
 
