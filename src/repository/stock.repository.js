@@ -5,6 +5,7 @@ import ProductCategory from "../models/productCategory.model.js";
 import Category from "../models/category.model.js";
 import User from "../models/user.model.js";
 import Admin from "../models/admin.model.js";
+import UserProduct from "../models/userProduct.model.js";  // ✅ REQUIRED
 
 
 // export const getProductsByCategoryId = async (categoryId) => {
@@ -71,11 +72,26 @@ import Admin from "../models/admin.model.js";
 
 
 export const getProductsByCategoryId = async (categoryId) => {
-  return await Product.find({ category: categoryId })
+
+  // ✅ ADMIN PRODUCTS
+  const adminProducts = await Product.find({ category: categoryId })
     .populate("user", "firstName lastName userType")
     .populate("category", "name")
     .lean();
+
+  // ✅ USER APPROVED PRODUCTS
+  const userProducts = await UserProduct.find({
+    category: categoryId,
+    status: "Approved",   // ✅ ONLY APPROVED
+  })
+    .populate("user", "firstName lastName userType")
+    .populate("category", "name")
+    .lean();
+
+  // ✅ MERGE BOTH FOR STOCK MANAGEMENT
+  return [...adminProducts, ...userProducts];
 };
+
 
 export const getServicesByCategoryId = async (categoryId) => {
   return await Service.find({ category: categoryId })

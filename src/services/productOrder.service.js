@@ -1,6 +1,9 @@
 // services/admin/order.service.js
 import * as orderRepo from "../repository/productOrder.repository.js";
 import { ApiError } from "../utils/ApiError.js";
+import UserProduct from "../models/userProduct.model.js";
+import Product from "../models/product.model.js";
+
 
 export const getOrders = async (startDate, endDate, status) => {
   const orders = await orderRepo.fetchOrdersWithUsersAndVendors(
@@ -49,82 +52,81 @@ export const getOrders = async (startDate, endDate, status) => {
 
 
 
+
+
 export const getProductPosterDetails = async (productName) => {
-  const products = await orderRepo.findProductByNameWithUser(productName);
 
-  if (!products || products.length === 0) {
-    return [];
-  }
+  // ✅ SEARCH IN BOTH COLLECTIONS
+  const adminProducts = await Product.find({
+    name: { $regex: new RegExp(productName, "i") },
+    status: "Approved"
+  }).populate("user", "firstName lastName phone userType").lean();
 
-  // Map over all products and extract relevant data
+  const userProducts = await UserProduct.find({
+    name: { $regex: new RegExp(productName, "i") },
+    status: "Approved"
+  }).populate("user", "firstName lastName phone userType").lean();
+
+  const products = [...adminProducts, ...userProducts];
+
+  if (!products.length) return [];
+
   return products.map((p) => {
     const u = p.user;
-       const unit = p?.unit || "unit";
 
-    // Dynamic label mapping
-    let dynamicUnitValue;
-    let dynamicUnitLabel = "Unit";
-    if (unit === "kg") {
-      dynamicUnitLabel = "Weight";
-      dynamicUnitValue=p?.weight;
-    }
-    else if (unit === "liters") {
-      dynamicUnitLabel = "Volume";
-      dynamicUnitValue=p?.volume;
-    }
-    else if (unit === "quantity") {
-     dynamicUnitLabel = "Quantity";
-     dynamicUnitValue=p?.quantity;
-    }
-      
+    let dynamicValue = null;
+    let dynamicLabel = "Unit";
 
-    const rating = u.userType === "Admin" ? 5 : 0; // ✅ 5 for Admins, static (4) for Users
+    if (p.unit === "kg") {
+      dynamicLabel = "Weight";
+      dynamicValue = p.weight;
+    }
+    else if (p.unit === "liters") {
+      dynamicLabel = "Volume";
+      dynamicValue = p.volume;
+    }
+    else if (p.unit === "quantity") {
+      dynamicLabel = "Quantity";
+      dynamicValue = p.quantity;
+    }
+
     return {
-      id:u._id,
+      id: u._id,
       name: `${u.firstName} ${u.lastName}`,
       phone: u.phone,
-      rating,
-      unit:p.unit,
-      dynamicUnitLabel:dynamicUnitValue,
+      rating: u.userType === "Admin" ? 5 : 0,
+      unit: p.unit,
+      dynamicUnitLabel: dynamicLabel,
+      dynamicUnitValue: dynamicValue,
       product: p.name,
       userType: u.userType,
     };
   });
 };
 
+
 export const assignVendorService = async (
   orderId,
-   vendorId,
-    vendorType,
+  vendorId,
+  vendorType,
   assignedBy,
   assignedByType
 ) => {
   const updatedOrder = await orderRepo.assignVendorToOrder(
     orderId,
-     vendorId,
-      vendorType,
-      assignedBy,
+    vendorId,
+    vendorType,
+    assignedBy,
     assignedByType
-    );
+  );
 
   if (!updatedOrder) {
     throw new ApiError(404, "Order not found");
   }
 
-  return {
-    id: updatedOrder._id,
-    vendorName: updatedOrder.vendor
-      ? `${updatedOrder.vendor.firstName} ${updatedOrder.vendor.lastName}`
-      : null,
-       assignedByType: updatedOrder.assignedByType,
-    vendorType: updatedOrder.vendorType,
-    productName: updatedOrder.product?.name || updatedOrder.productName,
-    quantity: updatedOrder.quantity,
-    cost: updatedOrder.cost,
-    orderedOn: updatedOrder.orderedOn,
-    status: updatedOrder.status,
-  };
+  return updatedOrder; // ✅ RETURN FULL ORDER
 };
+
 
 
 export const markAsDeliveredService = async (orderId) => {

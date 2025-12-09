@@ -10,6 +10,8 @@ import { ApiError } from "../utils/ApiError.js";
 import UserProduct from "../models/userProduct.model.js";
 import Cart from "../models/cart.model.js";
 import { clearCartRepository } from "../repository/cart.repository.js";
+import { decreaseStock, increaseStock } from "./inventory.service.js";
+// import Cart from "../models/cart.model.js"; 
 
 const unitFieldMap = {
   quantity: "quantity",
@@ -72,8 +74,21 @@ export const getCartService = async (userId) => {
 // CLEAR CART SERVICE
 // -----------------------
 export const clearCartService = async (userId) => {
-  return await clearCartRepository(userId);
+  const cart = await Cart.findOne({ user: userId });
+
+  if (!cart || !cart.items.length) return cart;
+
+  // ✅ RESTORE ALL STOCK
+  for (const item of cart.items) {
+    await increaseStock(item.product, item.quantity);
+  }
+
+  cart.items = [];
+  await cart.save();
+
+  return cart;
 };
+
 
 // ------------------------------------------------
 // VERIFY PAYMENT + PROCESS ORDERS
@@ -140,46 +155,43 @@ export const verifyAndProcessPaymentService = async (
   const orders = [];
 
   // Process each product in cart
-  for (const item of validItems) {
-    const product = item.product;
-    const unitField = unitFieldMap[product.unit];
+ for (const item of validItems) {
+  const product = item.product;
+  const unitField = unitFieldMap[product.unit];
 
-    if (unitField && item.quantity > product[unitField]) {
-      throw new ApiError(
-        400,
-        `Only ${product[unitField]} ${product.unit} left for ${product.name}`
-      );
-    }
-
-    // Reduce stock
-    await cartRepo.reduceProductStock(product._id, unitField, item.quantity);
-
-    // Create product order
-    const order = await ProductOrder.create({
-  product: product._id,
-  productName: product.name,
-  quantity: `${item.quantity} ${product.unit}`,
-  cost: product.cost * item.quantity,
-  customer: userId,
-  orderedOn: new Date(),
-  status: "Upcoming",
-
-  // ⭐ NO AUTO ASSIGN
-  vendor: null,
-  vendorType: null,
-  vendorAssigned: false,
-  assignedBy: null,
-  assignedByType: null,
-
-  payment: {
-    razorpayOrderId: razorpay_order_id,
-    razorpayPaymentId: razorpay_payment_id,
-  },
-});
-
-
-    orders.push(order);
+  if (unitField && item.quantity > product[unitField]) {
+    throw new ApiError(
+      400,
+      `Only ${product[unitField]} ${product.unit} left for ${product.name}`
+    );
   }
+
+  // ✅ DO NOT TOUCH STOCK HERE
+
+  const order = await ProductOrder.create({
+    product: product._id,
+    productName: product.name,
+    quantity: `${item.quantity} ${product.unit}`,
+    cost: product.cost * item.quantity,
+    customer: userId,
+    orderedOn: new Date(),
+    status: "Upcoming",
+
+    vendor: null,
+    vendorType: null,
+    vendorAssigned: false,
+    assignedBy: null,
+    assignedByType: null,
+
+    payment: {
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+    },
+  });
+
+  orders.push(order);
+}
+
 
   // -----------------------------
   // FIXED: Clear cart correctly
@@ -199,6 +211,8 @@ export const verifyAndProcessPaymentService = async (
 
 export const addItemToCartService = async (userId, productId, qty = 1) => {
   // 1️⃣ Detect model
+ await decreaseStock(productId, qty);  // ✅ correct
+
   let userProduct = await UserProduct.findById(productId);
   let productModel = userProduct ? "UserProduct" : "Product";
 
@@ -256,8 +270,27 @@ export const addItemToCartService = async (userId, productId, qty = 1) => {
 };
 
 export const removeItemFromCartService = async (userId, productId) => {
-  return await cartRepo.removeItemFromCart(userId, productId);
+  const cart = await Cart.findOne({ user: userId });
+  if (!cart) return cart;
+
+  const item = cart.items.find(
+    (i) => i.product.toString() === productId.toString()
+  );
+
+  if (item) {
+    // 🔺 Release stock
+    await increaseStock(productId, item.quantity);
+
+    cart.items = cart.items.filter(
+      (i) => i.product.toString() !== productId.toString()
+    );
+
+    await cart.save();
+  }
+
+  return cart;
 };
+
 
 
 export const increaseQuantityService = async (userId, productId) => {
@@ -269,18 +302,19 @@ export const increaseQuantityService = async (userId, productId) => {
   );
   if (!item) throw new ApiError(404, "Item not found");
 
+  // ✅ DECREASE STOCK BY 1
+  await decreaseStock(productId, 1);
+
   item.quantity += 1;
   cart.updatedAt = new Date();
   await cart.save();
 
-  // fetch updated item only
-  const updatedItem = {
+  return {
     product: item.product,
     quantity: item.quantity
   };
-
-  return updatedItem; // 🔥 return ONLY increased item
 };
+
 export const decreaseQuantityService = async (userId, productId) => {
   let cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart) throw new ApiError(400, "Cart empty");
@@ -290,60 +324,44 @@ export const decreaseQuantityService = async (userId, productId) => {
   );
   if (!item) throw new ApiError(404, "Item not found");
 
+  // ✅ INCREASE STOCK BY 1
+  await increaseStock(productId, 1);
+
   if (item.quantity <= 1) {
     cart.items = cart.items.filter(
       (it) => it.product._id.toString() !== productId
     );
-
     await cart.save();
-    return { removed: true, productId }; // 🔥 RETURN ONLY REMOVED INFO
+    return { removed: true, productId };
   }
 
   item.quantity -= 1;
   cart.updatedAt = new Date();
   await cart.save();
 
-  const updatedItem = {
+  return {
     product: item.product,
     quantity: item.quantity
   };
-
-  return updatedItem; // return only updated item
 };
+
 // src/services/cart.service.js (excerpt)
 export const checkoutCartService = async (userId) => {
   const cart = await cartRepo.getCartByUser(userId);
   if (!cart || !cart.items || cart.items.length === 0)
     throw new ApiError(400, "Cart is empty");
 
-  // Filter out any items that somehow still have null product
   const validItems = cart.items.filter((it) => it.product && it.product._id);
   if (validItems.length === 0) {
-    // Cleanup cart and respond clearly
     await cartRepo.clearCart(userId);
-    throw new ApiError(400, "Cart contains no valid products to checkout");
+    throw new ApiError(400, "Cart contains no valid products");
   }
 
   const orders = [];
 
   for (const item of validItems) {
-    const userProduct = item.product; // already populated as UserProduct
-    // defensive check again
-    if (!userProduct) continue;
+    const userProduct = item.product;
 
-    // dynamic stock check
-    const unitField = unitFieldMap[userProduct.unit];
-    if (unitField && item.quantity > (userProduct[unitField] || 0)) {
-      throw new ApiError(
-        400,
-        `Only ${userProduct[unitField] || 0} ${userProduct.unit} available for ${userProduct.name}`
-      );
-    }
-
-    // Reduce stock (repository expects productId + unitField)
-    await cartRepo.reduceProductStock(userProduct._id, unitField, item.quantity);
-
-    // Create ProductOrder
     const order = await ProductOrder.create({
       product: userProduct._id,
       productName: userProduct.name,
@@ -359,8 +377,9 @@ export const checkoutCartService = async (userId) => {
     orders.push(order);
   }
 
-  // Clear cart after successful checkout
+  // ✅ ONLY CLEAR CART — NO STOCK CHANGE
   await cartRepo.clearCart(userId);
 
   return orders;
 };
+

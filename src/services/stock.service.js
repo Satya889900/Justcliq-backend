@@ -68,46 +68,50 @@ export const editProduct = async (productId, data) => {
   const updateData = {};
   const unsetFields = [];
 
-  // Dynamically build $set
+  // ✅ Only set valid values
   for (const [key, value] of Object.entries(data)) {
     if (value !== undefined && value !== null && value !== "") {
       updateData[key] = value;
     }
   }
 
-  // Dynamically determine fields to unset
+  // ✅ Correctly unset other unit fields
   if (unit === "quantity") unsetFields.push("weight", "volume");
-  else if (unit === "kg") unsetFields.push("quantity", "volume");
-  else if (unit === "liters") unsetFields.push("quantity", "weight");
+  if (unit === "kg") unsetFields.push("quantity", "volume");
+  if (unit === "liters") unsetFields.push("quantity", "weight");
 
-  const updated = await stockRepo.updateProductById(productId, updateData, unsetFields);
+  const updated = await stockRepo.updateProductById(
+    productId,
+    updateData,
+    unsetFields
+  );
+
   if (!updated) throw new ApiError(404, "Product not found");
 
-  // ✅ Dynamically choose field to display (quantity | weight | volume)
-  let valueField = null;
-  if (updated.unit === "quantity") valueField = updated.quantity;
-  else if (updated.unit === "kg") valueField = updated.weight;
-  else if (updated.unit === "liters") valueField = updated.volume;
+  // ✅ Always return fresh updated live stock
+  let liveStock = 0;
+  if (updated.unit === "quantity") liveStock = updated.quantity;
+  if (updated.unit === "kg") liveStock = updated.weight;
+  if (updated.unit === "liters") liveStock = updated.volume;
 
   return {
     id: updated._id,
     name: updated.name,
-    category: updated.category?.name,
-    status:
-      (updated.quantity ?? updated.weight ?? updated.volume) > 0
-        ? "Available"
-        : "Out of stock",
+    category: updated.category?.name || null,
     unit: updated.unit,
-    [updated.unit === "quantity"
-      ? "quantity"
-      : updated.unit === "kg"
-      ? "weight"
-      : "volume"]: valueField,
+
+    status: liveStock > 0 ? "Available" : "Out of stock",
+
+    quantity: updated.unit === "quantity" ? updated.quantity : undefined,
+    weight: updated.unit === "kg" ? updated.weight : undefined,
+    volume: updated.unit === "liters" ? updated.volume : undefined,
+
     vendorName: updated.user
       ? `${updated.user.firstName} ${updated.user.lastName}`
-      : data.vendorName || null,
+      : null,
   };
 };
+
 
 export const editService = async (serviceId, data) => {
   const {  name, category, wageType, wages, vendorName } = data;

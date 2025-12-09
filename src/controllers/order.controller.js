@@ -5,7 +5,7 @@ import { fetchOrderedProductsByUserAndTime, placeOrder } from "../services/order
 import { validate } from "../middlewares/validate.js";
 import { getOrderedProductsByTimeSchema, placeOrderSchema } from "../validations/order.validation.js";
 import ProductOrder from "../models/productOrder.model.js";
-
+import { increaseStock } from "../services/inventory.service.js";
 import UserProduct from "../models/userProduct.model.js";   // ✅ ADD THIS
 
 
@@ -47,12 +47,24 @@ export const getUserOrders = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
   const orders = await ProductOrder.find({ customer: userId })
-    .sort({ orderedOn: -1 });
+    .populate("vendor", "firstName lastName")
+    .populate("assignedBy", "firstName lastName userType")
+    .sort({ orderedOn: -1 })
+    .lean();
+
+  const formatted = orders.map(order => ({
+    ...order,
+    vendorName: order.vendor
+      ? `${order.vendor.firstName} ${order.vendor.lastName}`
+      : null
+  }));
 
   return res.json(
-    new ApiResponse(200, orders, "Orders fetched successfully")
+    new ApiResponse(200, formatted, "Orders fetched successfully")
   );
 });
+
+
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId, status } = req.body;
@@ -90,6 +102,10 @@ export const getSingleOrderController = async (req, res) => {
 };
 
 
+
+
+
+
 export const cancelUserOrderController = async (req, res) => {
   const userId = req.user._id;
   const { orderId } = req.params;
@@ -101,38 +117,22 @@ export const cancelUserOrderController = async (req, res) => {
 
   if (!order) throw new ApiError(404, "Order not found");
 
-  // User can ONLY cancel if not delivered
-  if (order.status === "Delivered") {
+  if (order.status === "Delivered")
     throw new ApiError(400, "Delivered order cannot be cancelled");
+
+  if (order.status === "Cancelled")
+    throw new ApiError(400, "Order already cancelled");
+
+  // ✅ RESTORE INVENTORY
+  if (order.product) {
+    await increaseStock(order.product, order.quantity);
   }
 
-  if (order.status === "Cancelled") {
-    throw new ApiError(400, "Order is already cancelled");
-  }
-
-  // Restore stock to user’s product (optional but recommended)
-  const product = await UserProduct.findById(order.product);
-  if (product) {
-    const unit = product.unit;
-
-    if (unit === "quantity") {
-      product.quantity += parseInt(order.quantity); // 3 quantity
-    } 
-    else if (unit === "kg") {
-      product.weight += parseFloat(order.quantity);
-    } 
-    else if (unit === "liters") {
-      product.volume += parseFloat(order.quantity);
-    }
-
-    await product.save();
-  }
-
-  // Update order status
   order.status = "Cancelled";
   await order.save();
 
   return res.json(
-    new ApiResponse(200, order, "Order cancelled successfully")
+    new ApiResponse(200, order, "Order cancelled & stock restored")
   );
 };
+

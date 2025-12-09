@@ -61,26 +61,19 @@ export const assignVendorToOrder = async (
     {
       vendor: vendorId,
       vendorType,
-      status: "Out for Delivery",
-      vendorAssigned: true,
+      status: "Out for Delivery",   // ✅ CRITICAL
       assignedBy,
       assignedByType,
+      vendorAssigned: true
     },
-    { new: true } // Return updated document
+    { new: true }
   )
-    .populate({
-      path: "vendor",
-      select: "firstName lastName",
-    })
-    .populate({
-      path: "assignedBy",
-      select: "firstName lastName userType",
-    })
-    .populate({
-      path: "product",
-      select: "name",
-    });
+    .populate("vendor", "firstName lastName")
+    .populate("assignedBy", "firstName lastName userType")
+    .populate("product", "name")
+    .populate("customer", "firstName lastName");
 };
+
 
 /**
  * Mark as Delivered (when user gives feedback)
