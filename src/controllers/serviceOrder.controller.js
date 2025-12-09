@@ -132,6 +132,10 @@ export const updateBookedServiceStatusController = [
    📌 VENDOR ACCEPT BOOKING
 ============================================================ */
 export const vendorAcceptController = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
   const { bookingId } = req.body;
   const { _id: userId, userType } = req.user;
 
@@ -146,10 +150,15 @@ export const vendorAcceptController = asyncHandler(async (req, res) => {
   );
 });
 
+
 /* ============================================================
    📌 VENDOR REJECT BOOKING
 ============================================================ */
 export const vendorRejectController = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
   const { bookingId } = req.body;
   const { _id: userId, userType } = req.user;
 
@@ -163,6 +172,7 @@ export const vendorRejectController = asyncHandler(async (req, res) => {
     new ApiResponse(200, booking, "Booking rejected, status updated to Cancelled")
   );
 });
+
 
 /* ============================================================
    📌 UPCOMING BOOKINGS FOR ADMIN
@@ -276,6 +286,12 @@ export const getBookingsController = asyncHandler(async (req, res) => {
    📌 USER: GET ALL BOOKED SERVICES (HIS OWN BOOKINGS)
 ============================================================ */
 export const getUserAllBookingsController = asyncHandler(async (req, res) => {
+  if (!req.user || !req.user._id) {
+    return res.status(401).json(
+      new ApiResponse(401, null, "Unauthorized: Login required")
+    );
+  }
+
   const userId = req.user._id;
 
   const bookings = await BookedService.find({ user: userId })

@@ -1,5 +1,5 @@
 import Service from "../models/service.model.js";
-
+import ServiceProvider from "../models/serviceProvider.model.js";
 // Create
 export const createService = async (serviceData) => {
   return await Service.create(serviceData);
@@ -7,15 +7,30 @@ export const createService = async (serviceData) => {
 
 // Read: Get services by category
 // Read: Get services by category, admin first
+// repository/service.repository.js
+
+
 export const getServicesByCategory = async (categoryId) => {
-  const services = await Service.find({ category: categoryId })
+  // ✅ Step 1: Get only APPROVED service IDs
+  const approvedProviders = await ServiceProvider.find({
+    action: "Approved"
+  }).select("serviceId");
+
+  const approvedServiceIds = approvedProviders.map(p => p.serviceId);
+
+  // ✅ Step 2: Fetch ONLY approved services in this category
+  const services = await Service.find({
+    _id: { $in: approvedServiceIds },
+    category: categoryId
+  })
     .populate("category", "name")
-    .populate("user", "firstName lastName email") // Better user info
-    .sort({ userType: -1, createdAt: -1 }) // ✅ Admin (userType="Admin") first, then by creation date
+    .populate("user", "firstName lastName email")
+    .sort({ createdAt: -1 })
     .lean();
 
   return services || [];
 };
+
 
 
 

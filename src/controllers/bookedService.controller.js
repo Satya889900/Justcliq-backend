@@ -53,27 +53,40 @@ export const getBookedServicesByUserAndServiceController = [
 ];
 
 // All bookings (with optional filters)
-export const getUserBookedServices = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
+export const getUserBookedServices = async (req, res) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Login required",
+        data: null,
+      });
+    }
 
-  // Get all bookings sorted by last update
-  const allBookings = await BookedService.find({ user: userId })
-    .populate("service", "name cost image category description")
-    .populate("vendor", "firstName lastName phone email profileImage")
-    .sort({ updatedAt: -1 });  // ⭐ ALWAYS SHOW MOST RECENT STATUS
+    const userId = req.user._id;
 
-  // Remove duplicates → keep only latest booking per service
-  const uniqueBookings = Object.values(
-    allBookings.reduce((acc, booking) => {
-      acc[booking.service._id] = booking; // overwrite older ones
-      return acc;
-    }, {})
-  );
+    const bookings = await BookedService.find({ user: userId })
+      .populate("service")
+      .populate("vendor")
+      .sort({ createdAt: -1 })
+      .lean();
 
-  return res.status(200).json(
-    new ApiResponse(200, uniqueBookings, "Booked services fetched successfully")
-  );
-});
+    return res.status(200).json({
+      success: true,
+      message: "User bookings fetched successfully",
+      data: bookings,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      data: null,
+      errors: [error.message],
+    });
+  }
+};
+
 
 
 
