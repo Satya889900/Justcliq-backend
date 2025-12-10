@@ -14,6 +14,7 @@ deleteCategoryById,
   deleteProductCategoryById,
   countServicesInCategory,
   countProductsInCategory,
+  searchServiceCategoriesByPrefixRepository,
   getAllProductCategories, } from "../repository/category.repository.js";
 import cloudinary from "../config/cloudinary.js";
 import { deleteServicesByCategory } from "../repository/service.repository.js";
@@ -197,4 +198,11 @@ export const deleteProductCategoryService = async (categoryId) => {
   await deleteProductCategoryById(categoryId);
   return new ApiResponse(200, null,
      "Product category deleted successfully");
+};
+
+
+export const searchServiceCategoriesByPrefixService = async (keyword) => {
+  if (!keyword) throw new ApiError(400, "Search keyword is required");
+
+  return await searchServiceCategoriesByPrefixRepository(keyword);
 };

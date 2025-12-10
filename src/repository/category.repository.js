@@ -101,3 +101,17 @@ export const countServicesInCategory = async (categoryId) => {
 export const countProductsInCategory = async (categoryId) => {
   return await Product.countDocuments({ category: categoryId });
 };
+
+
+export const searchServiceCategoriesByPrefixRepository = async (keyword) => {
+  const regex = new RegExp(`^${keyword}`, "i"); // ✅ c, co, car, cool etc
+
+  const categories = await Category.find({
+    name: { $regex: regex }
+  })
+  .select("_id name image createdAt")
+  .sort({ name: 1 })
+  .lean();
+
+  return categories || [];
+};

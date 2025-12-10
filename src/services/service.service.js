@@ -7,6 +7,7 @@ import {
   deleteServicesByCategory,
   deleteServiceById,
   getServiceWithCategory,
+  searchServicesByCategoryNameRepository,
 } from "../repository/service.repository.js";
 import Category from "../models/category.model.js";
 import cloudinary from "../config/cloudinary.js";
@@ -216,4 +217,12 @@ export const fetchServiceCategoryService = async (serviceId) => {
     // categoryId: service.category._id,
     categoryName: service.category.name
   };
+};
+
+
+export const searchServicesByNameService = async (keyword) => {
+  if (!keyword) throw new ApiError(400, "Search keyword is required");
+
+  const services = await searchServicesByCategoryNameRepository(keyword);
+  return services || [];
 };

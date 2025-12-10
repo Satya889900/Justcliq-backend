@@ -1,5 +1,7 @@
 import Service from "../models/service.model.js";
 import ServiceProvider from "../models/serviceProvider.model.js";
+import Category from "../models/category.model.js";  // ✅ THIS WAS MISSING
+
 // Create
 export const createService = async (serviceData) => {
   return await Service.create(serviceData);
@@ -81,3 +83,48 @@ export const getServiceWithCategory = async (serviceId) => {
     .populate("category", "name") // Only fetch category name
     .lean();
 };
+
+
+
+
+export const searchServicesByCategoryNameRepository = async (keyword) => {
+  // ✅ Progressive PREFIX match (c -> all, co -> only cool)
+  const categoryRegex = new RegExp(`^${keyword}`, "i"); // ✅ correct
+
+  // ✅ Find matching categories ONLY by NAME PREFIX
+  const categories = await Category.find({
+    name: { $regex: categoryRegex }
+  }).select("_id name");
+
+  if (!categories.length) return [];
+
+  const categoryIds = categories.map(cat => cat._id);
+
+  // ✅ Approved User Services Only
+  const approvedProviders = await ServiceProvider.find({
+    action: "Approved"
+  }).select("serviceId");
+
+  const approvedServiceIds = approvedProviders.map(p => p.serviceId);
+
+  // ✅ Fetch services ONLY from matched categories
+  const services = await Service.find({
+    category: { $in: categoryIds },
+    $or: [
+      { userType: "Admin" },  // ✅ Always visible
+      {
+        userType: "User",
+        _id: { $in: approvedServiceIds } // ✅ Approved users only
+      }
+    ]
+  })
+    .populate("category", "name")   // ✅ Category name visible
+    .populate("user", "firstName lastName email")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return services || [];
+};
+
+
+

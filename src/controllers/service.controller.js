@@ -7,7 +7,7 @@ import {
   deleteServiceService,
   getServiceProvidersListService,
    fetchServiceCategoryService,
-    // searchServicesService 
+  searchServicesByNameService
 } from "../services/service.service.js";
 import { validate } from "../middlewares/validate.js";
 import {
@@ -132,13 +132,13 @@ export const getSingleSubCategoryController = asyncHandler(async (req, res) => {
     new ApiResponse(200, subcategory, "Subcategory details fetched successfully")
   );
 });
-// export const searchServicesController = asyncHandler(async (req, res) => {
-//   const { keyword, categoryId } = req.query;
-//   const userType = req.user?.userType || "User";
+export const searchServicesByNameController = asyncHandler(async (req, res) => {
+  const { keyword } = req.query;
 
-//   const services = await searchServicesService(keyword, categoryId, userType);
+  const services = await searchServicesByNameService(keyword);
 
-//   return res.status(200).json(
-//     new ApiResponse(200, services, "Services fetched successfully")
-//   );
-// });
+  return res.status(200).json(
+    new ApiResponse(200, services, "Category name prefix search results fetched successfully")
+  );
+});
+

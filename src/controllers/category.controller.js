@@ -9,6 +9,7 @@ import { addCategoryService,
    addProductCategoryService,
    editProductCategoryService,
   deleteProductCategoryService,
+  searchServiceCategoriesByPrefixService
    } from '../services/category.service.js';
 import { validate } from "../middlewares/validate.js";
 import { addCategorySchema,
@@ -175,3 +176,14 @@ export const getProductCategoriesController = [
     res.status(200).json(new ApiResponse(200, categories, "Product categories fetched successfully"));
   }),
 ];
+
+
+export const searchServiceCategoriesByPrefixController = asyncHandler(async (req, res) => {
+  const { keyword } = req.query;
+
+  const categories = await searchServiceCategoriesByPrefixService(keyword);
+
+  return res.status(200).json(
+    new ApiResponse(200, categories, "Service categories fetched successfully")
+  );
+});

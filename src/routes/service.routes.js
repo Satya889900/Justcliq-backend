@@ -3,10 +3,10 @@ import {
   getServicesByCategoryController,
   addUserServiceController,
   getServiceCategoryController,
+  searchServicesByNameController 
 } from "../controllers/service.controller.js";
 import { uploadServiceImage } from "../middlewares/ServiceUpload.js";
 import { attachFileToBody } from "../middlewares/attachFileToBody.js";
-
 const router = Router();
 
 // Create service
@@ -19,6 +19,11 @@ router.get("/service-categories/:categoryId", getServicesByCategoryController);
 
 // GET category by service ID
 router.get("/service-category/:serviceId", getServiceCategoryController);
+
+
+
+
+router.get("/search-name", searchServicesByNameController);
 
 
 export default router;

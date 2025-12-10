@@ -48,7 +48,7 @@ router.post("/request", saveRequestUser);
 =============================== */
 
 router.use(verifyJWT(["User", "Admin", "ServiceProvider"]));
-
+router.use("/api/services", serviceRoutes);
 router.get("/profile", getProfile);
 router.put("/profile", upload.single("profileImage"), updateProfile);
 router.put("/update", upload.single("profileImage"), updateProfile);
@@ -59,7 +59,7 @@ router.post("/logout", logoutUser);
    USER MODULE ROUTES
 =============================== */
 
-router.use("/api/services", serviceRoutes);
+
 router.use("/api/categories", categoryRoutes);
 router.use("/api/products", productRoutes);      // Admin or main product routes
 router.use("/api/user-products", userProductRoutes);
