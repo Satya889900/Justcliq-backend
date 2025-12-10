@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import Service from "../models/service.model.js";
 import ServiceProvider from "../models/serviceProvider.model.js";
 import cloudinary from "../config/cloudinary.js";
+import { ApiError } from "../utils/ApiError.js";
 
 import {
   getServiceProvidersListService,

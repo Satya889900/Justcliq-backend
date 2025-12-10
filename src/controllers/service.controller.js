@@ -7,6 +7,7 @@ import {
   deleteServiceService,
   getServiceProvidersListService,
    fetchServiceCategoryService,
+    // searchServicesService 
 } from "../services/service.service.js";
 import { validate } from "../middlewares/validate.js";
 import {
@@ -61,17 +62,26 @@ export const addUserServiceController = [
 // ✅ Update Service Controller
 export const updateServiceController = [
   validate(serviceIdSchema, "params"),
-   validate(updateServiceSchema, "body"),
+  validate(updateServiceSchema, "body"),
   asyncHandler(async (req, res) => {
     const { serviceId } = req.params;
     const file = req.file;
     const updateData = req.body;
+    const currentUser = req.user; // ✅ THIS WAS MISSING
 
-    const updatedService = await updateServiceService(serviceId, updateData, file);
+    const updatedService = await updateServiceService(
+      serviceId,
+      updateData,
+      file,
+      currentUser // ✅ PASS USER
+    );
 
-    return res.status(200).json(new ApiResponse(200, updatedService, "Service updated successfully"));
+    return res.status(200).json(
+      new ApiResponse(200, updatedService, "Service updated successfully")
+    );
   }),
 ];
+
 
 // ✅ Delete service
 export const deleteServiceController = [
@@ -122,3 +132,13 @@ export const getSingleSubCategoryController = asyncHandler(async (req, res) => {
     new ApiResponse(200, subcategory, "Subcategory details fetched successfully")
   );
 });
+// export const searchServicesController = asyncHandler(async (req, res) => {
+//   const { keyword, categoryId } = req.query;
+//   const userType = req.user?.userType || "User";
+
+//   const services = await searchServicesService(keyword, categoryId, userType);
+
+//   return res.status(200).json(
+//     new ApiResponse(200, services, "Services fetched successfully")
+//   );
+// });

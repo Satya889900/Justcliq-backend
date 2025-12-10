@@ -10,21 +10,21 @@ export const createServiceSchema = Joi.object({
     Joi.string().hex().length(24), // existing category ObjectId
     Joi.string().min(1).max(100)   // new category name
   ).required(),
-  wageType: Joi.string().valid("Hourly", "Daily").required(),
+ wageType: Joi.string().valid("Hourly", "Daily").optional(),
+
   image: Joi.string().uri().required() // single image URL (from multer/Cloudinary)
 });
 
 // Update Service Validation
 export const updateServiceSchema = Joi.object({
   name: Joi.string().min(3).max(100).optional(),
-  description: Joi.string().max(1000).allow("").optional(),
+  description: Joi.string().max(1000).allow("").optional(), // ✅ WILL WORK NOW
   cost: Joi.number().positive().precision(2).optional(),
   category: Joi.alternatives().try(
-    Joi.string().hex().length(24), // existing category ObjectId
-    Joi.string().min(1).max(100)   // new category name
+    Joi.string().hex().length(24),
+    Joi.string().min(1).max(100)
   ).optional(),
-  wageType: Joi.string().valid("Hourly", "Daily").optional(),
-  image: Joi.string().uri().optional()
+  wageType: Joi.string().valid("Hourly", "Daily").optional()
 });
 
 // Service ID Validation

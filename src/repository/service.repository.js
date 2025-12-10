@@ -10,18 +10,29 @@ export const createService = async (serviceData) => {
 // repository/service.repository.js
 
 
+// repository/service.repository.js
+// repository/service.repository.js
+
 export const getServicesByCategory = async (categoryId) => {
-  // ✅ Step 1: Get only APPROVED service IDs
+  // 1️⃣ Get approved service IDs (for USER services)
   const approvedProviders = await ServiceProvider.find({
-    action: "Approved"
+    action: "Approved",
   }).select("serviceId");
 
-  const approvedServiceIds = approvedProviders.map(p => p.serviceId);
+  const approvedServiceIds = approvedProviders.map((p) => p.serviceId);
 
-  // ✅ Step 2: Fetch ONLY approved services in this category
+  // 2️⃣ Fetch:
+  //    - All ADMIN services in this category (no approval needed)
+  //    - USER services ONLY if their serviceId is in approvedServiceIds
   const services = await Service.find({
-    _id: { $in: approvedServiceIds },
-    category: categoryId
+    category: categoryId,
+    $or: [
+      { userType: "Admin" }, // ✅ always show admin services
+      {
+        userType: "User",
+        _id: { $in: approvedServiceIds }, // ✅ only approved user services
+      },
+    ],
   })
     .populate("category", "name")
     .populate("user", "firstName lastName email")
@@ -30,6 +41,8 @@ export const getServicesByCategory = async (categoryId) => {
 
   return services || [];
 };
+
+
 
 
 

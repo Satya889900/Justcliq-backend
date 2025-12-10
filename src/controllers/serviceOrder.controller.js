@@ -229,26 +229,55 @@ export const completeBookingController = asyncHandler(async (req, res) => {
      - Allow rating after completion as well
      - Prevent duplicate rating from same user for same booking (optional)
   ========================================== */
-  if (rating !== undefined && rating !== null) {
-    // Optional: prevent same user rating twice for the same booking
-    const alreadyRated = Array.isArray(booking.rating) && booking.rating.some(r => String(r.ratedBy) === String(userId));
-    if (!alreadyRated) {
-      booking.rating = booking.rating || [];
-      booking.rating.push({
-        score: Number(rating),
-        review: review || "",
-        ratedBy: userId,
-        ratedAt: new Date(),
-      });
-
-      // recompute avgRating
-      const total = booking.rating.reduce((sum, r) => sum + (Number(r.score) || 0), 0);
-      booking.avgRating = Math.round((total / booking.rating.length) * 100) / 100;
-    } else {
-      // If you prefer to allow updates instead of ignoring, replace above behavior.
-      // For now, we ignore duplicate rating submissions.
-    }
+ // ✅ ADD RATING + CALCULATE CORRECT AVERAGE
+// ✅ ADD / UPDATE RATING + CALCULATE TRUE AVERAGE
+if (rating !== undefined && rating !== null) {
+  // Ensure array exists
+  if (!Array.isArray(booking.rating)) {
+    booking.rating = [];
   }
+
+  // 1️⃣ Keep only REAL ratings (1–5), remove 0 / null / undefined / bad data
+  booking.rating = booking.rating.filter(
+    (r) => r && typeof r.score === "number" && r.score >= 1 && r.score <= 5
+  );
+
+  // 2️⃣ Check if this user already rated before
+  const existingIndex = booking.rating.findIndex(
+    (r) => String(r.ratedBy) === String(userId)
+  );
+
+  if (existingIndex !== -1) {
+    // 🔁 UPDATE existing rating by this user
+    booking.rating[existingIndex].score = Number(rating);
+    booking.rating[existingIndex].review = review || booking.rating[existingIndex].review;
+    booking.rating[existingIndex].ratedAt = new Date();
+  } else {
+    // ➕ ADD new rating
+    booking.rating.push({
+      score: Number(rating),
+      review: review || "",
+      ratedBy: userId,
+      ratedAt: new Date(),
+    });
+  }
+
+  // 3️⃣ NOW calculate average only on valid ratings
+  if (booking.rating.length > 0) {
+    const totalScore = booking.rating.reduce(
+      (sum, r) => sum + Number(r.score),
+      0
+    );
+
+    booking.avgRating = Number(
+      (totalScore / booking.rating.length).toFixed(1)
+    );
+  } else {
+    booking.avgRating = 0; // no ratings yet
+  }
+}
+
+
 
   // Save once (defensive)
   await booking.save();

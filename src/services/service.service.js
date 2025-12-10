@@ -21,102 +21,123 @@ export const fetchServicesByCategoryService = async (categoryId) => {
 // Add service
 // Add a service
 export const addUserServiceService = async (userId, userType, serviceData, file) => {
-  const { name, description, category, cost,wageType} = serviceData;
+  const { name, description, category, cost, wageType } = serviceData;
 
-  if (!name || !category || !cost|| !wageType) {
-    throw new ApiError(400, "Name, category, wageType and cost are required");
+  // ✅ BASIC REQUIRED VALIDATION (NO wageType here)
+  if (!name || !category || !cost) {
+    throw new ApiError(400, "Name, category and cost are required");
+  }
+
+  // ✅ ONLY ADMIN MUST SEND wageType
+  if (userType === "Admin" && !wageType) {
+    throw new ApiError(400, "wageType is required for Admin");
   }
 
   let categoryId;
 
-  // Check if category is a valid ObjectId
+  // ✅ CATEGORY HANDLING
   if (/^[0-9a-fA-F]{24}$/.test(category)) {
     const existingCategory = await Category.findById(category);
     if (!existingCategory) throw new ApiError(404, "Category not found");
     categoryId = existingCategory._id;
   } else {
-    // Category is a string → check if it exists
     let existingCategory = await Category.findOne({ name: category });
     if (!existingCategory) {
-      // Create new category
       existingCategory = await Category.create({ name: category });
     }
     categoryId = existingCategory._id;
   }
 
+  // ✅ FINAL PAYLOAD
   const payload = {
     name,
     description: description || "",
     category: categoryId,
     cost,
-     wageType,
     user: userId,
     userType,
-    image: file?.path || "",       // single image
+    image: file?.path || "",
     imagePublicId: file?.filename || "",
   };
+
+  // ✅ ADD wageType ONLY IF ADMIN
+  if (userType === "Admin") {
+    payload.wageType = wageType;
+  }
 
   return await createService(payload);
 };
 
+
 // Update service
 
 // ✅ Update Service
-export const updateServiceService = async (serviceId, updateData, file) => {
+export const updateServiceService = async (
+  serviceId,
+  updateData,
+  file,
+  currentUser
+) => {
   const service = await getServiceById(serviceId);
   if (!service) throw new ApiError(404, "Service not found");
 
+  // ✅ PERMISSION
+  if (currentUser.userType !== "Admin") {
+    if (String(service.user) !== String(currentUser._id)) {
+      throw new ApiError(403, "You are not allowed to edit this service");
+    }
+  }
+
   const safeUpdateData = {};
 
-  if (updateData.name && typeof updateData.name === "string") {
+  // ✅ NAME
+  if (updateData.name !== undefined)
     safeUpdateData.name = updateData.name.trim();
-  }
-  if (updateData.description!==undefined && typeof updateData.description === "string") {
+
+  // ✅ DESCRIPTION
+  if (updateData.description !== undefined)
     safeUpdateData.description = updateData.description.trim();
-  }
-  if (updateData.cost !== undefined) {
-    safeUpdateData.cost = parseFloat(updateData.cost) || service.cost;
-  }
-  
-  if (updateData.wageType) {
-    // Validate wageType enum
+
+  // ✅ COST
+  if (updateData.cost !== undefined)
+    safeUpdateData.cost = Number(updateData.cost);
+
+  // ✅ WAGE TYPE
+  if (updateData.wageType !== undefined) {
     if (!["Hourly", "Daily"].includes(updateData.wageType)) {
       throw new ApiError(400, 'wageType must be "Hourly" or "Daily"');
     }
     safeUpdateData.wageType = updateData.wageType;
   }
 
+  // ✅ CATEGORY (ID OR NAME BOTH SUPPORTED)
+  if (updateData.category !== undefined) {
+    let categoryInput = updateData.category.trim();
 
-  // Handle category
-  if (updateData.category) {
-    let categoryInput = updateData.category;
-    if (typeof categoryInput === "string") categoryInput = categoryInput.trim();
-
-    if (typeof categoryInput === "string" && !categoryInput.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!categoryInput.match(/^[0-9a-fA-F]{24}$/)) {
       const categoryDoc = await Category.findOne({ name: categoryInput });
-      if (!categoryDoc) throw new ApiError(400, `Category "${categoryInput}" not found`);
+      if (!categoryDoc)
+        throw new ApiError(400, `Category "${categoryInput}" not found`);
       safeUpdateData.category = categoryDoc._id;
     } else {
       safeUpdateData.category = categoryInput;
     }
   }
 
-  // Handle file/image
+  // ✅ IMAGE
   if (file) {
-    if (file.path) {
-      safeUpdateData.image = file.path;
-      safeUpdateData.imagePublicId = file.filename;
-    } else if (file.secure_url && file.public_id) {
-      safeUpdateData.image = file.secure_url;
-      safeUpdateData.imagePublicId = file.public_id;
-    }
+    safeUpdateData.image = file.path;
+    safeUpdateData.imagePublicId = file.filename;
   }
 
+  // ✅ FINAL UPDATE
   const updatedService = await updateServiceById(serviceId, safeUpdateData);
-  if (!updatedService) throw new ApiError(500, "Failed to update service");
+  if (!updatedService) throw new ApiError(500, "Service update failed");
 
   return updatedService;
 };
+
+
 
 // Delete service
 export const deleteServiceService = async (serviceId) => {

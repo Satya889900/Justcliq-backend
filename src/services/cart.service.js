@@ -92,16 +92,7 @@ export const verifyAndProcessPaymentService = async (
   { razorpay_order_id, razorpay_payment_id, razorpay_signature }
 ) => {
 
-  console.log("🧾 Incoming Verify Data:", {
-    razorpay_order_id, razorpay_payment_id, razorpay_signature
-  });
-
-  if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-    throw new ApiError(400, "Missing payment verification fields");
-  }
-
   const secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!secret) throw new ApiError(500, "Razorpay secret missing");
 
   const generatedSignature = crypto
     .createHmac("sha256", secret)
@@ -109,20 +100,17 @@ export const verifyAndProcessPaymentService = async (
     .digest("hex");
 
   if (generatedSignature !== razorpay_signature) {
-    // store failed attempt
     await Payment.create({
       user: userId,
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
       status: "failed",
-      meta: { reason: "signature_mismatch" }
     });
-
     throw new ApiError(400, "Invalid payment signature");
   }
 
-  // Store valid payment
+  // ✅ Store successful payment
   await Payment.create({
     user: userId,
     razorpayOrderId: razorpay_order_id,
@@ -131,68 +119,45 @@ export const verifyAndProcessPaymentService = async (
     status: "paid",
   });
 
-  // Get cart for this user
   const cart = await cartRepo.getCartByUser(userId);
 
-  if (!cart || !cart.items || cart.items.length === 0) {
+  if (!cart || !cart.items || cart.items.length === 0)
     throw new ApiError(400, "Cart is empty");
-  }
-
-  const validItems = cart.items.filter(it => it.product && it.product._id);
-
-  if (validItems.length === 0) {
-    await clearCartRepository(userId);   // FIXED
-    throw new ApiError(400, "Cart contains invalid items");
-  }
 
   const orders = [];
 
-  // Process each product in cart
- for (const item of validItems) {
-  const product = item.product;
-  const unitField = unitFieldMap[product.unit];
+  // ✅ DO NOT CHECK OR TOUCH STOCK HERE
+  for (const item of cart.items) {
+    const product = item.product;
 
-  if (unitField && item.quantity > product[unitField]) {
-    throw new ApiError(
-      400,
-      `Only ${product[unitField]} ${product.unit} left for ${product.name}`
-    );
+    const order = await ProductOrder.create({
+      product: product._id,
+      productName: product.name,
+      quantity: `${item.quantity} ${product.unit}`,
+      cost: product.cost * item.quantity,
+      customer: userId,
+      orderedOn: new Date(),
+      status: "Upcoming",
+
+      vendor: null,
+      vendorType: null,
+      vendorAssigned: false,
+
+      payment: {
+        razorpayOrderId: razorpay_order_id,
+        razorpayPaymentId: razorpay_payment_id,
+      },
+    });
+
+    orders.push(order);
   }
 
-  // ✅ DO NOT TOUCH STOCK HERE
-
-  const order = await ProductOrder.create({
-    product: product._id,
-    productName: product.name,
-    quantity: `${item.quantity} ${product.unit}`,
-    cost: product.cost * item.quantity,
-    customer: userId,
-    orderedOn: new Date(),
-    status: "Upcoming",
-
-    vendor: null,
-    vendorType: null,
-    vendorAssigned: false,
-    assignedBy: null,
-    assignedByType: null,
-
-    payment: {
-      razorpayOrderId: razorpay_order_id,
-      razorpayPaymentId: razorpay_payment_id,
-    },
-  });
-
-  orders.push(order);
-}
-
-
-  // -----------------------------
-  // FIXED: Clear cart correctly
-  // -----------------------------
+  // ✅ Just clear cart (stock already adjusted earlier)
   await clearCartRepository(userId);
 
   return orders;
 };
+
 
 // ------------------------------------------------
 // CART FUNCTIONS (no changes)
@@ -248,25 +213,32 @@ export const addItemToCartService = async (userId, productId, qty = 1) => {
 
 export const removeItemFromCartService = async (userId, productId) => {
   const cart = await Cart.findOne({ user: userId });
-  if (!cart) return cart;
 
-  const item = cart.items.find(
+  if (!cart || !cart.items.length) return cart;
+
+  // ✅ STRICT match (product + model)
+  const itemIndex = cart.items.findIndex(
     (i) => i.product.toString() === productId.toString()
   );
 
-  if (item) {
-    // 🔺 Release stock
-    await increaseStock(productId, item.quantity);
-
-    cart.items = cart.items.filter(
-      (i) => i.product.toString() !== productId.toString()
-    );
-
-    await cart.save();
+  if (itemIndex === -1) {
+    throw new ApiError(404, "Item not found in cart");
   }
+
+  const item = cart.items[itemIndex];
+
+  // ✅ RESTORE FULL STOCK BACK
+  await increaseStock(item.product, item.quantity);
+
+  // ✅ Remove item safely
+  cart.items.splice(itemIndex, 1);
+
+  cart.updatedAt = new Date();
+  await cart.save();
 
   return cart;
 };
+
 
 
 
