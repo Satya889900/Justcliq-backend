@@ -18,12 +18,19 @@ const findAnyProduct = async (productId) => {
 
 // ✅ Convert "2 quantity" → 2
 const parseQty = (val) => {
-  const num = typeof val === "string" ? Number(val.split(" ")[0]) : Number(val);
-  if (!num || Number.isNaN(num) || num <= 0) {
+  let num;
+
+  if (typeof val === "number") num = val;
+  else if (typeof val === "string") num = parseFloat(val);  // ✅ FIX
+  else throw new ApiError(400, "Invalid quantity type");
+
+  if (isNaN(num) || num <= 0) {
     throw new ApiError(400, `Invalid quantity: ${val}`);
   }
+
   return num;
 };
+
 
 
 // 🔻 DECREASE STOCK (Add to Cart / Place Order)

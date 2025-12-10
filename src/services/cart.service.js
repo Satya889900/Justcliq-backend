@@ -74,20 +74,13 @@ export const getCartService = async (userId) => {
 // CLEAR CART SERVICE
 // -----------------------
 export const clearCartService = async (userId) => {
-  const cart = await Cart.findOne({ user: userId });
-
-  if (!cart || !cart.items.length) return cart;
-
-  // ✅ RESTORE ALL STOCK
-  for (const item of cart.items) {
-    await increaseStock(item.product, item.quantity);
-  }
-
-  cart.items = [];
-  await cart.save();
-
-  return cart;
+  return await Cart.findOneAndUpdate(
+    { user: userId },
+    { $set: { items: [], updatedAt: new Date() } },
+    { new: true }
+  );
 };
+
 
 
 // ------------------------------------------------
@@ -210,64 +203,48 @@ export const verifyAndProcessPaymentService = async (
 
 
 export const addItemToCartService = async (userId, productId, qty = 1) => {
-  // 1️⃣ Detect model
- await decreaseStock(productId, qty);  // ✅ correct
+  const userProduct = await UserProduct.findById(productId);
+  const productModel = userProduct ? "UserProduct" : "Product";
 
-  let userProduct = await UserProduct.findById(productId);
-  let productModel = userProduct ? "UserProduct" : "Product";
+  const productDoc = userProduct || await Product.findById(productId);
+  if (!productDoc) throw new ApiError(404, "Product not found");
 
-  let productDoc = userProduct || await Product.findById(productId);
-  if (!productDoc) {
-    throw new ApiError(404, "Product not found");
-  }
+  // ✅ ONLY THIS STOCK CHECK (REMOVE DUPLICATE CHECK ABOVE)
+  await decreaseStock(productId, qty);
 
-  // 2️⃣ Fetch cart
   let cart = await Cart.findOne({ user: userId });
-  if (!cart) {
-    cart = await Cart.create({ user: userId, items: [] });
-  }
+  if (!cart) cart = await Cart.create({ user: userId, items: [] });
 
-  // 3️⃣ Check if already in cart
-  let existing = cart.items.find(
+  let item = cart.items.find(
     (it) =>
-      it.product?.toString() === productId &&
+      it.product.toString() === productId &&
       it.productModel === productModel
   );
 
-  let updatedItem;
-
-  if (existing) {
-    // Increase quantity
-    existing.quantity += qty;
-
-    updatedItem = {
-      product: productDoc,
-      productModel,
-      quantity: existing.quantity
-    };
-
+  if (item) {
+    item.quantity += qty;
   } else {
-    // Add new item
-    const newItem = {
+    cart.items.push({
       product: productId,
-      productModel,
-      quantity: qty
-    };
-
-    cart.items.push(newItem);
-
-    updatedItem = {
-      product: productDoc,
-      productModel,
-      quantity: qty
-    };
+      productModel,   // ✅ REQUIRED
+      quantity: qty,
+    });
   }
 
   cart.updatedAt = new Date();
   await cart.save();
 
-  return updatedItem;  // 🔥 return ONLY the updated/added product
+  return {
+    product: productDoc,
+    productModel,
+    quantity: item ? item.quantity : qty,
+  };
 };
+
+
+
+
+
 
 export const removeItemFromCartService = async (userId, productId) => {
   const cart = await Cart.findOne({ user: userId });
@@ -294,20 +271,22 @@ export const removeItemFromCartService = async (userId, productId) => {
 
 
 export const increaseQuantityService = async (userId, productId) => {
-  let cart = await Cart.findOne({ user: userId }).populate("items.product");
-  if (!cart) throw new ApiError(400, "Cart empty");
+  await decreaseStock(productId, 1); // ✅ only here
+
+  const cart = await Cart.findOneAndUpdate(
+    { user: userId, "items.product": productId },
+    {
+      $inc: { "items.$.quantity": 1 },
+      $set: { updatedAt: new Date() }
+    },
+    { new: true }
+  ).populate("items.product");
+
+  if (!cart) throw new ApiError(404, "Item not found");
 
   const item = cart.items.find(
     (i) => i.product._id.toString() === productId
   );
-  if (!item) throw new ApiError(404, "Item not found");
-
-  // ✅ DECREASE STOCK BY 1
-  await decreaseStock(productId, 1);
-
-  item.quantity += 1;
-  cart.updatedAt = new Date();
-  await cart.save();
 
   return {
     product: item.product,
@@ -315,8 +294,11 @@ export const increaseQuantityService = async (userId, productId) => {
   };
 };
 
+
 export const decreaseQuantityService = async (userId, productId) => {
-  let cart = await Cart.findOne({ user: userId }).populate("items.product");
+  await increaseStock(productId, 1); // ✅ restore
+
+  const cart = await Cart.findOne({ user: userId }).populate("items.product");
   if (!cart) throw new ApiError(400, "Cart empty");
 
   const item = cart.items.find(
@@ -324,26 +306,34 @@ export const decreaseQuantityService = async (userId, productId) => {
   );
   if (!item) throw new ApiError(404, "Item not found");
 
-  // ✅ INCREASE STOCK BY 1
-  await increaseStock(productId, 1);
-
   if (item.quantity <= 1) {
-    cart.items = cart.items.filter(
-      (it) => it.product._id.toString() !== productId
+    await Cart.findOneAndUpdate(
+      { user: userId },
+      { $pull: { items: { product: productId } } }
     );
-    await cart.save();
     return { removed: true, productId };
   }
 
-  item.quantity -= 1;
-  cart.updatedAt = new Date();
-  await cart.save();
+  const updatedCart = await Cart.findOneAndUpdate(
+    { user: userId, "items.product": productId },
+    {
+      $inc: { "items.$.quantity": -1 },
+      $set: { updatedAt: new Date() }
+    },
+    { new: true }
+  ).populate("items.product");
+
+  const updatedItem = updatedCart.items.find(
+    (i) => i.product._id.toString() === productId
+  );
 
   return {
-    product: item.product,
-    quantity: item.quantity
+    product: updatedItem.product,
+    quantity: updatedItem.quantity
   };
 };
+
+
 
 // src/services/cart.service.js (excerpt)
 export const checkoutCartService = async (userId) => {
