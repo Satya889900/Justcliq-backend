@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import mainRouter from "./routes/user.routes.js ";
+// import mainRouter from "./routes/user.routes.js ";
 
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
@@ -43,7 +43,7 @@ app.use(
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use(cookieParser());
-app.use(mainRouter);  // ✅ THIS WAS MISSING – THIS FIXES EVERYTHING
+// app.use(mainRouter);  // ✅ THIS WAS MISSING – THIS FIXES EVERYTHING
 
 app.use(express.static('public'));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
