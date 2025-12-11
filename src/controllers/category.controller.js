@@ -187,3 +187,12 @@ export const searchServiceCategoriesByPrefixController = asyncHandler(async (req
     new ApiResponse(200, categories, "Service categories fetched successfully")
   );
 });
+export const searchProductCategoriesByPrefixController = asyncHandler(async (req, res) => {
+  const { keyword } = req.query;
+
+  const categories = await searchProductCategoriesByPrefixService(keyword);
+
+  return res.status(200).json(
+    new ApiResponse(200, categories, "Product categories fetched successfully")
+  );
+});

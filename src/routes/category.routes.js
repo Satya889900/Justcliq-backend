@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getCategoriesController,
     getServiceController,
-getProductCategoriesController,searchServiceCategoriesByPrefixController } from "../controllers/category.controller.js";
+getProductCategoriesController,searchServiceCategoriesByPrefixController,searchProductCategoriesByPrefixController } from "../controllers/category.controller.js";
 
 
 import { 
@@ -33,6 +33,8 @@ router.get(
   getSingleSubCategoryController
 );
 router.get("/search", searchServiceCategoriesByPrefixController);
+router.get("/product-search", searchProductCategoriesByPrefixController);
+
 // Protected route: only users
 router.get("/:serviceId", getServiceController);
 

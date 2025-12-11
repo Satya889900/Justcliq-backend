@@ -15,7 +15,8 @@ deleteCategoryById,
   countServicesInCategory,
   countProductsInCategory,
   searchServiceCategoriesByPrefixRepository,
-  getAllProductCategories, } from "../repository/category.repository.js";
+  getAllProductCategories,
+searchProductCategoriesByPrefixRepository  } from "../repository/category.repository.js";
 import cloudinary from "../config/cloudinary.js";
 import { deleteServicesByCategory } from "../repository/service.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -205,4 +206,10 @@ export const searchServiceCategoriesByPrefixService = async (keyword) => {
   if (!keyword) throw new ApiError(400, "Search keyword is required");
 
   return await searchServiceCategoriesByPrefixRepository(keyword);
+};
+
+export const searchProductCategoriesByPrefixService = async (keyword) => {
+  if (!keyword) throw new ApiError(400, "Search keyword is required");
+
+  return await searchProductCategoriesByPrefixRepository(keyword);
 };

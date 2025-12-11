@@ -115,3 +115,15 @@ export const searchServiceCategoriesByPrefixRepository = async (keyword) => {
 
   return categories || [];
 };
+export const searchProductCategoriesByPrefixRepository = async (keyword) => {
+  const regex = new RegExp(`^${keyword}`, "i");  
+
+  const categories = await ProductCategory.find({
+    name: { $regex: regex }
+  })
+    .select("_id name image createdAt")
+    .sort({ name: 1 })
+    .lean();
+
+  return categories || [];
+};
