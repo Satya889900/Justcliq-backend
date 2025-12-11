@@ -10,6 +10,7 @@ import {
   getAllProductsController,
   updateProductController,
   deleteProductController,
+   searchProductsInsideCategoryController
 } from "../controllers/product.controller.js";
 import upload from "../middlewares/uploadProduct.js";
 
@@ -18,6 +19,8 @@ const router = Router();
 
 // GET all products
 router.get("/", getAllProductsController);
+router.get("/category/:categoryId/search", searchProductsInsideCategoryController);
+
 
 // GET products by category
 router.get("/category/:categoryId", getProductsByCategoryController);

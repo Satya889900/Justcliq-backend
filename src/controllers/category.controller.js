@@ -22,7 +22,9 @@ import { addCategorySchema,
 import cloudinary from "../config/cloudinary.js";
 import { uploadCategoryImage } from "../middlewares/uploadCategoryMiddleware.js";
 // category.service.js
-
+import { searchProductCategoriesByPrefixService } 
+from "../services/category.service.js";   // adjust path if needed
+ 
 
 // ✅ Add new service category (Admin Only)
 export const addCategoryController = [

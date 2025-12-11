@@ -13,6 +13,8 @@ import {
 } from "../validations/product.validation.js";
 // controllers/product.controller.js (add import at top: optionally)
 import { fetchMergedProductsByCategoryService } from "../services/product.service.js";
+import Product from "../models/product.model.js";
+import UserProduct from "../models/userProduct.model.js";
 
 
 // Add product with multiple images
@@ -105,4 +107,39 @@ export const getMergedProductsByCategoryController = [
 
     return res.json(new ApiResponse(200, result, "Merged products fetched successfully"));
   }),
-];
+];export const searchProductsInsideCategoryController = asyncHandler(async (req, res) => {
+  const { categoryId } = req.params;
+  const { query = "" } = req.query;
+
+  if (!categoryId) {
+    throw new ApiError(400, "Category ID is required");
+  }
+
+  // 🟢 Word-boundary search: match words starting with query
+  const regex = new RegExp(`\\b${query}`, "i");
+
+  const adminProducts = await Product.find({
+    category: categoryId,
+    name: regex
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+    .lean();
+
+  const userProducts = await UserProduct.find({
+    category: categoryId,
+    status: "Approved",
+    name: regex
+  })
+    .populate("category", "name")
+    .populate("user", "firstName lastName email")
+    .lean();
+
+  return res.json(
+    new ApiResponse(
+      200,
+      [...adminProducts, ...userProducts],
+      "Products filtered successfully"
+    )
+  );
+});
