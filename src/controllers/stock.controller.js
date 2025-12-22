@@ -46,9 +46,9 @@ export const editProductController = [
   validate(idParamSchema, "params"),
   validate(editProductSchema, "body"),
   asyncHandler(async (req, res) => {
-const { categoryId } = req.validatedParams;
+    const { id: productId } = req.validatedParams;
 
-    const updatedProduct = await editProduct(productId, req.body);
+    const updatedProduct = await editProduct(productId, req.validatedBody);
     res
       .status(200)
       .json(new ApiResponse(200, updatedProduct, "Product updated successfully"));
@@ -59,8 +59,8 @@ export const editServiceController = [
   validate(idParamSchema, "params"),
   validate(editServiceSchema, "body"),
   asyncHandler(async (req, res) => {
-    const { serviceId } = req.params;
-    const updatedService = await editService(serviceId, req.body);
+   const { serviceId } = req.validatedParams;
+const updatedService = await editService(serviceId, req.validatedBody);
     res
       .status(200)
       .json(new ApiResponse(200, updatedService, "Service updated successfully"));

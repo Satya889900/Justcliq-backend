@@ -48,15 +48,19 @@ export const getItemsByCategory = async (categoryId, type="product") => {
     }));
   } else {
     const services = await stockRepo.getServicesByCategoryId(categoryId);
-    return services.map(s => ({
-      id: s._id,
-      name: s.name,
-      category: s.category.name,
-      wageType: s.wageType,
-      // cost: s.cost,
-       userType:s.userType,
-      vendorName: s.user ? `${s.user.firstName} ${s.user.lastName}` : null,
-    }));
+   return products.map(p => ({
+  id: p._id,
+  name: p.name,
+  category: p.category.name,
+  unit: p.unit,
+  value: p.value,
+  status: p.value > 0 ? "Available" : "Out of stock",
+  userType: p.user?.userType || null,
+  vendorName: p.user
+    ? `${p.user.firstName} ${p.user.lastName}`
+    : null,
+}));
+
   }
 };
 
@@ -64,53 +68,33 @@ export const getItemsByCategory = async (categoryId, type="product") => {
 export const editProduct = async (productId, data) => {
   if (!productId) throw new ApiError(400, "Missing productId");
 
-  const { unit } = data;
-  const updateData = {};
-  const unsetFields = [];
+  const { unit, value, ...rest } = data;
 
-  // ✅ Only set valid values
-  for (const [key, value] of Object.entries(data)) {
-    if (value !== undefined && value !== null && value !== "") {
-      updateData[key] = value;
-    }
+  if (value === undefined) {
+    throw new ApiError(400, "value is required");
   }
 
-  // ✅ Correctly unset other unit fields
-  if (unit === "quantity") unsetFields.push("weight", "volume");
-  if (unit === "kg") unsetFields.push("quantity", "volume");
-  if (unit === "liters") unsetFields.push("quantity", "weight");
-
-  const updated = await stockRepo.updateProductById(
-    productId,
-    updateData,
-    unsetFields
-  );
+  const updated = await stockRepo.updateProductById(productId, {
+    unit,
+    value,
+    ...rest,
+  });
 
   if (!updated) throw new ApiError(404, "Product not found");
-
-  // ✅ Always return fresh updated live stock
-  let liveStock = 0;
-  if (updated.unit === "quantity") liveStock = updated.quantity;
-  if (updated.unit === "kg") liveStock = updated.weight;
-  if (updated.unit === "liters") liveStock = updated.volume;
 
   return {
     id: updated._id,
     name: updated.name,
     category: updated.category?.name || null,
     unit: updated.unit,
-
-    status: liveStock > 0 ? "Available" : "Out of stock",
-
-    quantity: updated.unit === "quantity" ? updated.quantity : undefined,
-    weight: updated.unit === "kg" ? updated.weight : undefined,
-    volume: updated.unit === "liters" ? updated.volume : undefined,
-
+    value: updated.value,
+    status: updated.value > 0 ? "Available" : "Out of stock",
     vendorName: updated.user
       ? `${updated.user.firstName} ${updated.user.lastName}`
       : null,
   };
 };
+
 
 
 export const editService = async (serviceId, data) => {
@@ -135,19 +119,21 @@ export const editService = async (serviceId, data) => {
 
 export const batchUpdateStock = async (type, updates) => {
   const updatePromises = updates.map(update => {
-    const { id, ...fields } = update;
-    if (!id) {
-      console.warn("Skipping update for item without an ID:", update);
-      return Promise.resolve(null);
-    }
+    const { id, unit, value, ...rest } = update;
+    if (!id || value === undefined) return null;
 
     if (type === "product") {
-      return stockRepo.updateProductById(id, fields);
-    } else {
-      return stockRepo.updateServiceById(id, fields);
+      return stockRepo.updateProductById(id, {
+        unit,
+        value,
+        ...rest,
+      });
     }
+
+    return stockRepo.updateServiceById(id, rest);
   });
 
   const results = await Promise.all(updatePromises);
-  return results.filter(result => result !== null);
+  return results.filter(Boolean);
 };
+

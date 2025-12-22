@@ -24,25 +24,8 @@ export const editProductSchema = Joi.object({
     objectId,                     // Existing category ID
     Joi.string().min(2).max(100)  // New category name
   ).optional(),
-  unit: Joi.string().valid("quantity", "kg", "liters").optional(),
-
-  quantity: Joi.when("unit", {
-    is: "quantity",
-    then: Joi.number().min(0).required(),
-    otherwise: Joi.forbidden(),
-  }),
-
-  weight: Joi.when("unit", {
-    is: "kg",
-    then: Joi.number().min(0).required(),
-    otherwise: Joi.forbidden(),
-  }),
-
-  volume: Joi.when("unit", {
-    is: "liters",
-    then: Joi.number().min(0).required(),
-    otherwise: Joi.forbidden(),
-  }),
+ unit: Joi.string().min(1).required(),   // 🔥 dynamic
+  value: Joi.number().min(0).required(), 
 
   vendorName: Joi.string().optional().allow("", null),
 });
@@ -71,14 +54,14 @@ export const idParamSchema = Joi.object({
 // ✅ For batch updates
 export const batchUpdateStockSchema = Joi.object({
   type: Joi.string().valid("product", "service").required(),
-  updates: Joi.array()
-    .items(
-      Joi.object({
-        id: objectId.required(),
-      }).unknown(true) // Allow other fields like quantity, status, etc.
-    )
-    .min(1)
-    .required(),
+  updates: Joi.array().items(
+    Joi.object({
+      id: objectId.required(),
+      unit: Joi.string().required(),
+      value: Joi.number().min(0).required(),
+    })
+  ).min(1).required(),
 });
+
 
 export {getCategoriesSchema};

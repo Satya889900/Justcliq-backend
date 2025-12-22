@@ -106,16 +106,17 @@ export const findCategoryById = async (categoryId, type) => {
     : await Category.findById(categoryId);
 };
 
-export const updateProductById = async (id, data, unset) => {
-  const update = { $set: data };
-  if (unset && unset.length > 0) {
-    update.$unset = unset.reduce((acc, key) => ({ ...acc, [key]: "" }), {});
-  }
-  return await Product.findByIdAndUpdate(id, update, { new: true })
+export const updateProductById = async (id, data) => {
+  return await Product.findByIdAndUpdate(
+    id,
+    { $set: data },
+    { new: true }
+  )
     .populate("user", "firstName lastName")
     .populate("category", "name")
     .lean();
 };
+
 
 export const updateServiceById = async (id, data) => {
   return await Service.findByIdAndUpdate(id, data, { new: true })

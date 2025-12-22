@@ -1,7 +1,7 @@
 // models/product.model.js
 import mongoose from "mongoose";
 
-const allowedUnits = ["quantity", "kg", "liters"]; // ✅ Enum values
+// ✅ Enum values
 
 const productSchema = new mongoose.Schema(
   {
@@ -20,30 +20,16 @@ const productSchema = new mongoose.Schema(
 
     image: { type: String, required: true }, // single image
 
-    unit: {
+  unit: {
       type: String,
-      enum: allowedUnits,
       required: true,
+      trim: true, // e.g. box, kg, packet, liters, meter, etc
     },
 
-    // Dynamic numeric fields
-    quantity: {
+    value: {
       type: Number,
-      required: function () {
-        return this.unit === "quantity";
-      },
-    },
-    weight: {
-      type: Number,
-      required: function () {
-        return this.unit === "kg";
-      },
-    },
-    volume: {
-      type: Number,
-      required: function () {
-        return this.unit === "liters";
-      },
+      required: true,
+      min: 0,
     },
 
     user: {
@@ -53,10 +39,10 @@ const productSchema = new mongoose.Schema(
       index: true, // 🔥 fast filter by user
     },
 
-    userType: {
+     userType: {
       type: String,
-      required: true,
       enum: ["User", "Admin"],
+      required: true,
     },
 
     status: {
@@ -73,5 +59,5 @@ productSchema.index({ createdAt: -1 });         // fast sorting
 productSchema.index({ name: "text" });          // fast searching
 productSchema.index({ category: 1, createdAt: -1 }); // combined index for super fast category filter
 
-export { allowedUnits };
+
 export default mongoose.model("Product", productSchema);
